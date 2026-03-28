@@ -1,0 +1,511 @@
+# Qyou — REST API Contract (Phase 1)
+
+Base URL: `/api/v1`
+
+All request/response bodies are JSON (`Content-Type: application/json`) unless noted otherwise.
+
+Auth header format: `Authorization: Bearer <access_token>`
+
+---
+
+## Auth
+
+### POST /auth/register
+
+Create a new user account.
+
+**Auth required:** No
+
+**Request body:**
+```ts
+{
+  username: string     // 3–32 chars, alphanumeric + underscores only
+  email: string        // valid email
+  password: string     // 8–128 chars
+  display_name?: string // 1–64 chars
+}
+```
+
+**Success response:** `201 Created`
+```ts
+{
+  user: User
+  accessToken: string
+  refreshToken: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 409 | `"Username already taken"` | Username exists |
+| 409 | `"Email already registered"` | Email exists |
+
+---
+
+### POST /auth/login
+
+Authenticate with email/username and password.
+
+**Auth required:** No
+
+**Request body:**
+```ts
+{
+  login: string    // email or username
+  password: string
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  user: UserSelf
+  accessToken: string
+  refreshToken: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Invalid credentials"` | Wrong email/username or password |
+
+---
+
+### POST /auth/logout
+
+Revoke the current refresh token.
+
+**Auth required:** Yes
+
+**Request body:**
+```ts
+{
+  refreshToken: string
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  message: "Logged out"
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### POST /auth/refresh
+
+Exchange a refresh token for a new access/refresh token pair.
+
+**Auth required:** No
+
+**Request body:**
+```ts
+{
+  refreshToken: string
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  accessToken: string
+  refreshToken: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Invalid or expired refresh token"` | Token invalid, expired, or revoked |
+
+---
+
+### GET /auth/me
+
+Get the authenticated user's own profile.
+
+**Auth required:** Yes
+
+**Success response:** `200 OK`
+```ts
+{
+  user: UserSelf
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+## Users
+
+### GET /users/search
+
+Search for users by username or UIN. Supports optional country filter.
+
+**Auth required:** Yes
+
+**Query parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| q | string | Yes | Search query (username partial match or exact UIN) |
+| country | string | No | ISO 3166-1 alpha-2 country code filter |
+| limit | number | No | Max results (default 20, max 50) |
+| offset | number | No | Pagination offset (default 0) |
+
+**Success response:** `200 OK`
+```ts
+{
+  users: User[]
+  total: number
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Query param validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### GET /users/:uin
+
+Get a user's public profile by UIN.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| uin | number | Numeric user ID |
+
+**Success response:** `200 OK`
+```ts
+{
+  user: User
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"User not found"` | No user with that UIN |
+
+---
+
+### PATCH /users/me
+
+Update the authenticated user's profile.
+
+**Auth required:** Yes
+
+**Request body:** (all fields optional, at least one required)
+```ts
+{
+  display_name?: string  // 1–64 chars
+  bio?: string           // 0–500 chars
+  country?: string       // ISO 3166-1 alpha-2
+  username?: string      // 3–32 chars, alphanumeric + underscores
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  user: UserSelf
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 409 | `"Username already taken"` | New username already exists |
+
+---
+
+### POST /users/me/avatar
+
+Upload or update the authenticated user's avatar.
+
+**Auth required:** Yes
+
+**Request:** `Content-Type: multipart/form-data`
+| Field | Type | Description |
+|---|---|---|
+| avatar | File | Image file (JPEG, PNG, WebP). Max 5MB. |
+
+**Success response:** `200 OK`
+```ts
+{
+  avatar_url: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid file type"` | Not JPEG/PNG/WebP |
+| 400 | `"File too large"` | Exceeds 5MB |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+## Contacts
+
+### GET /contacts
+
+List all contacts for the authenticated user.
+
+**Auth required:** Yes
+
+**Query parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| status | string | No | Filter by status: `pending`, `accepted`, `blocked` (default: all) |
+
+**Success response:** `200 OK`
+```ts
+{
+  contacts: Contact[]
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### POST /contacts
+
+Send a contact request.
+
+**Auth required:** Yes
+
+**Request body:**
+```ts
+{
+  userId: string   // UUID of the user to add
+}
+```
+
+**Success response:** `201 Created`
+```ts
+{
+  contact: Contact
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 400 | `"Cannot add yourself"` | userId is the authenticated user |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"User not found"` | Target user doesn't exist |
+| 409 | `"Contact request already exists"` | Duplicate request |
+
+---
+
+### PATCH /contacts/:userId
+
+Accept, reject, or block a contact.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| userId | string | UUID of the contact |
+
+**Request body:**
+```ts
+{
+  status: "accepted" | "blocked"
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  contact: Contact
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"Contact not found"` | No contact relationship exists |
+
+---
+
+### DELETE /contacts/:userId
+
+Remove a contact.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| userId | string | UUID of the contact to remove |
+
+**Success response:** `200 OK`
+```ts
+{
+  message: "Contact removed"
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"Contact not found"` | No contact relationship exists |
+
+---
+
+## Conversations
+
+### GET /conversations
+
+List all conversations for the authenticated user, ordered by most recent message.
+
+**Auth required:** Yes
+
+**Query parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| limit | number | No | Max results (default 20, max 50) |
+| offset | number | No | Pagination offset (default 0) |
+
+**Success response:** `200 OK`
+```ts
+{
+  conversations: Conversation[]
+  total: number
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### GET /conversations/:id
+
+Get a single conversation by ID.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the conversation |
+
+**Success response:** `200 OK`
+```ts
+{
+  conversation: Conversation
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant |
+| 404 | `"Conversation not found"` | Doesn't exist |
+
+---
+
+### GET /conversations/:id/messages
+
+Get paginated messages for a conversation (newest first).
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the conversation |
+
+**Query parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| before | string | No | ISO 8601 timestamp cursor — return messages before this time |
+| limit | number | No | Max results (default 50, max 100) |
+
+**Success response:** `200 OK`
+```ts
+{
+  messages: Message[]
+  hasMore: boolean
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant |
+| 404 | `"Conversation not found"` | Doesn't exist |
+
+---
+
+## Messages
+
+### POST /conversations/:id/messages
+
+Send a message in a conversation.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the conversation |
+
+**Request body:**
+```ts
+{
+  content: string   // 1–5000 chars
+}
+```
+
+**Success response:** `201 Created`
+```ts
+{
+  message: Message
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails (empty or too long) |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant |
+| 404 | `"Conversation not found"` | Doesn't exist |
