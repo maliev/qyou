@@ -1,4 +1,4 @@
-# Qyou — REST API Contract (Phase 1)
+# Qyou — REST API Contract (Phases 1–2)
 
 Base URL: `/api/v1`
 
@@ -509,3 +509,234 @@ Send a message in a conversation.
 | 401 | `"Unauthorized"` | Missing or invalid access token |
 | 403 | `"Forbidden"` | User is not a participant |
 | 404 | `"Conversation not found"` | Doesn't exist |
+
+---
+
+### GET /conversations/:id/pinned
+
+Get pinned messages for a conversation.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the conversation |
+
+**Success response:** `200 OK`
+```ts
+{
+  messages: Message[]
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant |
+| 404 | `"Conversation not found"` | Doesn't exist |
+
+---
+
+## Messages (Phase 2)
+
+### POST /messages/:id/reactions
+
+Toggle a reaction on a message. Adds if not exists, removes if exists.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message |
+
+**Request body:**
+```ts
+{
+  emoji: string   // One of: ❤️ 🔥 😂 👍 👎 😮
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  action: "add" | "remove"
+  reaction: {
+    messageId: string
+    userId: string
+    emoji: string
+  }
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Invalid emoji or missing fields |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant in the message's conversation |
+| 404 | `"Message not found"` | Message doesn't exist |
+
+---
+
+### DELETE /messages/:id/reactions/:emoji
+
+Remove a specific reaction from a message.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message |
+| emoji | string | The emoji to remove (URL-encoded) |
+
+**Success response:** `200 OK`
+```ts
+{
+  message: "Reaction removed"
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"Reaction not found"` | Reaction doesn't exist |
+
+---
+
+### PATCH /messages/:id
+
+Edit a message's content. Only the sender can edit, within 24 hours.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message |
+
+**Request body:**
+```ts
+{
+  content: string   // 1–5000 chars
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  message: Message
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | Not the sender or edit window expired (24h) |
+| 404 | `"Message not found"` | Message doesn't exist or is deleted |
+
+---
+
+### DELETE /messages/:id
+
+Delete a message for self or for everyone.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message |
+
+**Request body:**
+```ts
+{
+  deleteFor: "self" | "everyone"
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  message: "Message deleted"
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Invalid deleteFor value |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | deleteFor=everyone but not the sender |
+| 404 | `"Message not found"` | Message doesn't exist |
+
+---
+
+### POST /messages/:id/pin
+
+Toggle pin status of a message in its conversation.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message |
+
+**Success response:** `200 OK`
+```ts
+{
+  isPinned: boolean
+  messageId: string
+  conversationId: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant in the conversation |
+| 404 | `"Message not found"` | Message doesn't exist |
+
+---
+
+### POST /messages/:id/forward
+
+Forward a message to another conversation.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| id | string | UUID of the message to forward |
+
+**Request body:**
+```ts
+{
+  conversationId: string   // UUID of the target conversation
+}
+```
+
+**Success response:** `201 Created`
+```ts
+{
+  message: Message
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Missing conversationId |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | Not a participant in source or target conversation |
+| 404 | `"Message not found"` | Source message doesn't exist |
+| 404 | `"Conversation not found"` | Target conversation doesn't exist |

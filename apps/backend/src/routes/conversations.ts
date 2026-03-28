@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import * as conversationService from "../services/conversationService";
+import * as messageService from "../services/messageService";
 import { sendError } from "../utils/errors";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
@@ -128,6 +129,23 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
         id,
         request.userId
       );
+
+      if ("error" in result) {
+        return sendError(reply, result.error.status, result.error.message);
+      }
+
+      return reply.status(200).send(result);
+    }
+  );
+
+  // GET /conversations/:id/pinned
+  fastify.get(
+    "/:id/pinned",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const result = await messageService.getPinnedMessages(id, request.userId);
 
       if ("error" in result) {
         return sendError(reply, result.error.status, result.error.message);

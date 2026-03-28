@@ -1,5 +1,10 @@
 import { pool } from "../db";
 import { safeRedisPublish } from "../utils/gracefulRedis";
+import {
+  getReactionsForMessages,
+  getReplyPreviews,
+  getForwardPreviews,
+} from "./messageService";
 
 function toPublicUser(row: any) {
   return {
@@ -248,9 +253,10 @@ export async function getMessages(
          FROM messages m
          JOIN users u ON u.id = m.sender_id
          WHERE m.conversation_id = $1
+           AND m.is_deleted = false AND NOT ($2::uuid = ANY(m.deleted_for))
          ORDER BY m.created_at DESC
-         LIMIT $2`,
-        [conversationId, clampedLimit + 1]
+         LIMIT $3`,
+        [conversationId, userId, clampedLimit + 1]
       );
     } else {
       const cursorTime = cursorResult.rows[0].created_at;
@@ -260,9 +266,10 @@ export async function getMessages(
          FROM messages m
          JOIN users u ON u.id = m.sender_id
          WHERE m.conversation_id = $1 AND m.created_at < $2
+           AND m.is_deleted = false AND NOT ($3::uuid = ANY(m.deleted_for))
          ORDER BY m.created_at DESC
-         LIMIT $3`,
-        [conversationId, cursorTime, clampedLimit + 1]
+         LIMIT $4`,
+        [conversationId, cursorTime, userId, clampedLimit + 1]
       );
     }
   } else {
@@ -272,14 +279,30 @@ export async function getMessages(
        FROM messages m
        JOIN users u ON u.id = m.sender_id
        WHERE m.conversation_id = $1
+         AND m.is_deleted = false AND NOT ($2::uuid = ANY(m.deleted_for))
        ORDER BY m.created_at DESC
-       LIMIT $2`,
-      [conversationId, clampedLimit + 1]
+       LIMIT $3`,
+      [conversationId, userId, clampedLimit + 1]
     );
   }
 
   const hasMore = messages.rows.length > clampedLimit;
   const rows = hasMore ? messages.rows.slice(0, clampedLimit) : messages.rows;
+
+  // Batch-fetch reactions, reply previews, forward previews
+  const messageIds = rows.map((r: any) => r.id);
+  const replyToIds = rows
+    .filter((r: any) => r.reply_to_id)
+    .map((r: any) => r.reply_to_id);
+  const forwardedFromIds = rows
+    .filter((r: any) => r.forwarded_from_id)
+    .map((r: any) => r.forwarded_from_id);
+
+  const [reactionsMap, replyMap, forwardMap] = await Promise.all([
+    getReactionsForMessages(messageIds),
+    getReplyPreviews(replyToIds),
+    getForwardPreviews(forwardedFromIds),
+  ]);
 
   return {
     messages: rows.map((row: any) => ({
@@ -297,6 +320,14 @@ export async function getMessages(
       status: "sent",
       created_at: row.created_at,
       edited_at: row.edited_at,
+      reply_to_id: row.reply_to_id,
+      reply_to: row.reply_to_id ? (replyMap[row.reply_to_id] || null) : null,
+      is_edited: row.is_edited ?? false,
+      is_deleted: row.is_deleted ?? false,
+      is_pinned: row.is_pinned ?? false,
+      forwarded_from_id: row.forwarded_from_id,
+      forwarded_from: row.forwarded_from_id ? (forwardMap[row.forwarded_from_id] || null) : null,
+      reactions: reactionsMap[row.id] || [],
     })),
     hasMore,
   };
@@ -305,7 +336,8 @@ export async function getMessages(
 export async function createMessage(
   conversationId: string,
   senderId: string,
-  content: string
+  content: string,
+  replyToId?: string
 ) {
   // Verify conversation exists
   const convCheck = await pool.query(
@@ -327,10 +359,10 @@ export async function createMessage(
 
   // Insert message
   const result = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content)
-     VALUES ($1, $2, $3)
+    `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id)
+     VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [conversationId, senderId, content]
+    [conversationId, senderId, content, replyToId || null]
   );
 
   const msg = result.rows[0];
@@ -357,7 +389,21 @@ export async function createMessage(
     status: "sent",
     created_at: msg.created_at,
     edited_at: msg.edited_at,
+    reply_to_id: msg.reply_to_id || null,
+    reply_to: null as { id: string; content: string; sender_id: string; sender_name: string } | null,
+    is_edited: false,
+    is_deleted: false,
+    is_pinned: false,
+    forwarded_from_id: msg.forwarded_from_id || null,
+    forwarded_from: null,
+    reactions: [],
   };
+
+  // Fetch reply preview if replying
+  if (msg.reply_to_id) {
+    const replyPreviews = await getReplyPreviews([msg.reply_to_id]);
+    message.reply_to = replyPreviews[msg.reply_to_id] || null;
+  }
 
   // Publish to Redis for realtime delivery
   await safeRedisPublish(

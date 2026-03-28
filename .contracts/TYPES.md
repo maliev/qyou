@@ -1,4 +1,4 @@
-# Qyou — Shared TypeScript Types (Phase 1)
+# Qyou — Shared TypeScript Types (Phases 1–2)
 
 These are the canonical types. Both frontend and backend import from `packages/shared-types`.
 
@@ -85,6 +85,59 @@ export interface Message {
   status: MessageDeliveryStatus;
   created_at: string;      // ISO 8601
   edited_at: string | null;
+  // Phase 2 fields
+  reply_to_id: string | null;
+  reply_to: MessageReplyPreview | null;
+  is_edited: boolean;
+  is_deleted: boolean;
+  is_pinned: boolean;
+  forwarded_from_id: string | null;
+  forwarded_from: MessageForwardPreview | null;
+  reactions: ReactionGroup[];
+}
+```
+
+### MessageReplyPreview
+
+```ts
+export interface MessageReplyPreview {
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_name: string;     // display_name or username
+}
+```
+
+### MessageForwardPreview
+
+```ts
+export interface MessageForwardPreview {
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_name: string;
+}
+```
+
+### MessageReaction
+
+```ts
+export interface MessageReaction {
+  id: string;              // UUID
+  message_id: string;      // UUID
+  user_id: string;         // UUID
+  emoji: string;
+  created_at: string;      // ISO 8601
+}
+```
+
+### ReactionGroup
+
+```ts
+export interface ReactionGroup {
+  emoji: string;
+  count: number;
+  user_ids: string[];
 }
 ```
 
@@ -156,6 +209,26 @@ export interface SendMessageRequest {
 export interface GetMessagesParams {
   before?: string;         // ISO 8601 timestamp
   limit?: number;
+}
+```
+
+### Messages (Phase 2)
+
+```ts
+export interface ToggleReactionRequest {
+  emoji: string;
+}
+
+export interface EditMessageRequest {
+  content: string;
+}
+
+export interface DeleteMessageRequest {
+  deleteFor: "self" | "everyone";
+}
+
+export interface ForwardMessageRequest {
+  conversationId: string;
 }
 ```
 
@@ -253,6 +326,41 @@ export interface SendMessageResponse {
 }
 ```
 
+### Message Responses (Phase 2)
+
+```ts
+export interface ToggleReactionResponse {
+  action: "add" | "remove";
+  reaction: {
+    messageId: string;
+    userId: string;
+    emoji: string;
+  };
+}
+
+export interface EditMessageResponse {
+  message: Message;
+}
+
+export interface DeleteMessageResponse {
+  message: "Message deleted";
+}
+
+export interface PinMessageResponse {
+  isPinned: boolean;
+  messageId: string;
+  conversationId: string;
+}
+
+export interface ForwardMessageResponse {
+  message: Message;
+}
+
+export interface PinnedMessagesResponse {
+  messages: Message[];
+}
+```
+
 ---
 
 ## WebSocket Payload Types
@@ -339,6 +447,39 @@ export interface WsMessageSendAck {
 
 export interface WsMessageReadAck {
   success: boolean;
+}
+```
+
+### Server → Client (Phase 2)
+
+```ts
+export interface WsMessageReaction {
+  messageId: string;
+  conversationId: string;
+  userId: string;
+  emoji: string;
+  action: "add" | "remove";
+}
+
+export interface WsMessageEdited {
+  messageId: string;
+  conversationId: string;
+  content: string;
+  editedAt: string;
+}
+
+export interface WsMessageDeleted {
+  messageId: string;
+  conversationId: string;
+  deleteFor: "self" | "everyone";
+  userId: string;
+}
+
+export interface WsMessagePinned {
+  messageId: string;
+  conversationId: string;
+  isPinned: boolean;
+  pinnedBy: string;
 }
 ```
 

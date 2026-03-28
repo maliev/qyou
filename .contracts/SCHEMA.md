@@ -1,4 +1,4 @@
-# Qyou — PostgreSQL Schema (Phase 1)
+# Qyou — PostgreSQL Schema (Phases 1–2)
 
 ## Extensions
 
@@ -147,6 +147,42 @@ CREATE TABLE messages_2025_02 PARTITION OF messages
 
 ---
 
+### message_reactions (Phase 2)
+
+```sql
+CREATE TABLE message_reactions (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  message_id  UUID NOT NULL,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  emoji       VARCHAR(10) NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  UNIQUE (message_id, user_id, emoji)
+);
+
+CREATE INDEX idx_message_reactions_message_id ON message_reactions (message_id);
+CREATE INDEX idx_message_reactions_user_id ON message_reactions (user_id);
+```
+
+> **Note:** `message_reactions` does not have a FK to `messages` because of the partitioned table constraint. Application-level integrity is enforced instead.
+
+---
+
+#### Phase 2 columns added to messages
+
+```sql
+ALTER TABLE messages ADD COLUMN reply_to_id UUID;
+ALTER TABLE messages ADD COLUMN is_edited BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE messages ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE messages ADD COLUMN deleted_for UUID[] NOT NULL DEFAULT '{}';
+ALTER TABLE messages ADD COLUMN is_pinned BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE messages ADD COLUMN forwarded_from_id UUID;
+```
+
+> **Note:** `reply_to_id` and `forwarded_from_id` reference messages(id) but cannot use FK constraints due to partitioning. Application-level integrity is enforced.
+
+---
+
 ### message_status
 
 ```sql
@@ -199,6 +235,7 @@ CREATE INDEX idx_push_tokens_user_id ON push_tokens (user_id);
 | users | conversation_participants | CASCADE |
 | users | messages (sender_id) | SET NULL |
 | users | message_status | CASCADE |
+| users | message_reactions | CASCADE |
 | users | push_tokens | CASCADE |
 | conversations | conversation_participants | CASCADE |
 | conversations | messages | CASCADE |

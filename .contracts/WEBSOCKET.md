@@ -1,4 +1,4 @@
-# Qyou — WebSocket Event Protocol (Phase 1)
+# Qyou — WebSocket Event Protocol (Phases 1–2)
 
 Transport: Socket.io v4
 Namespace: `/` (default)
@@ -275,6 +275,85 @@ On successful connection, the server:
   code: string            // e.g., "UNAUTHORIZED", "VALIDATION_ERROR", "INTERNAL_ERROR"
   message: string         // Human-readable error description
   event?: string          // The event that caused the error (if applicable)
+}
+```
+
+---
+
+---
+
+## Phase 2 Events
+
+### message:reaction
+
+**Direction:** server → client
+
+**When:** A user adds or removes a reaction on a message.
+
+**Payload:**
+```ts
+{
+  messageId: string       // UUID
+  conversationId: string  // UUID
+  userId: string          // UUID of the user who reacted
+  emoji: string           // The reaction emoji
+  action: "add" | "remove"
+}
+```
+
+---
+
+### message:edited
+
+**Direction:** server → client
+
+**When:** A message is edited by its sender.
+
+**Payload:**
+```ts
+{
+  messageId: string       // UUID
+  conversationId: string  // UUID
+  content: string         // Updated message content
+  editedAt: string        // ISO 8601 timestamp
+}
+```
+
+---
+
+### message:deleted
+
+**Direction:** server → client
+
+**When:** A message is deleted for everyone.
+
+**Payload:**
+```ts
+{
+  messageId: string       // UUID
+  conversationId: string  // UUID
+  deleteFor: "self" | "everyone"
+  userId: string          // UUID of the user who deleted
+}
+```
+
+**Note:** `deleteFor: "self"` is only sent to the user who deleted. `deleteFor: "everyone"` is broadcast to all participants.
+
+---
+
+### message:pinned
+
+**Direction:** server → client
+
+**When:** A message is pinned or unpinned in a conversation.
+
+**Payload:**
+```ts
+{
+  messageId: string       // UUID
+  conversationId: string  // UUID
+  isPinned: boolean
+  pinnedBy: string        // UUID of the user who pinned/unpinned
 }
 ```
 

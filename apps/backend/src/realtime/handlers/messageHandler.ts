@@ -9,13 +9,13 @@ export function register(io: Server, socket: Socket) {
     const tempId = payload?.tempId || "";
 
     try {
-      const { conversationId, content } = payload || {};
+      const { conversationId, content, replyToId } = payload || {};
 
       if (!conversationId || typeof content !== "string" || content.length === 0 || content.length > 5000) {
         return ack?.({ success: false, error: "Invalid payload", tempId });
       }
 
-      const result = await createMessage(conversationId, userId, content);
+      const result = await createMessage(conversationId, userId, content, replyToId);
 
       if ("error" in result) {
         return ack?.({ success: false, error: result.error.message, tempId });
