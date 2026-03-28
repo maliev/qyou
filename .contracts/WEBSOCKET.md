@@ -359,6 +359,28 @@ On successful connection, the server:
 
 ---
 
+## Phase 3 Events
+
+### sync:required
+
+**Direction:** server → client
+
+**When:** A user reconnects after being offline. Emitted on connection to inform the client which conversations may have new messages.
+
+**Payload:**
+```ts
+{
+  conversationIds: string[]  // UUIDs of conversations that may have new messages
+  since: string              // ISO 8601 timestamp (user's last_seen_at)
+}
+```
+
+**Client behavior:**
+1. For each conversationId, fetch GET /conversations/:id/messages and merge with local store (deduplicate by message id)
+2. Invalidate React Query conversations cache
+
+---
+
 ## Redis Keys Used by WebSocket Layer
 
 | Key pattern | Type | TTL | Description |

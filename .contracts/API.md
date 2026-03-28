@@ -707,6 +707,39 @@ Toggle pin status of a message in its conversation.
 
 ---
 
+## Search (Phase 3)
+
+### GET /search
+
+Search for users and/or messages.
+
+**Auth required:** Yes
+
+**Query parameters:**
+| Param | Type | Required | Description |
+|---|---|---|---|
+| q | string | Yes | Search query (min 2 chars) |
+| type | string | No | `"messages"` \| `"users"` \| `"all"` (default `"all"`) |
+| conversationId | string | No | Scope message search to one conversation |
+| limit | number | No | Max results (default 20, max 20) |
+| offset | number | No | Pagination offset (default 0) |
+
+**Success response:** `200 OK`
+```ts
+{
+  messages: MessageSearchResult[]
+  users: User[]
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Query param validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
 ### POST /messages/:id/forward
 
 Forward a message to another conversation.

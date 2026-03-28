@@ -492,3 +492,45 @@ export interface WsError {
   event?: string;
 }
 ```
+
+---
+
+## Phase 3 Types
+
+### Search
+
+```ts
+export interface MessageSearchResult {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender_name: string;
+  sender_avatar_url: string | null;
+  other_participant_name: string;
+  other_participant_avatar_url: string | null;
+}
+
+export interface SearchParams {
+  q: string;
+  type?: "messages" | "users" | "all";
+  conversationId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface SearchResponse {
+  messages: MessageSearchResult[];
+  users: User[];
+}
+```
+
+### WebSocket (Phase 3)
+
+```ts
+export interface WsSyncRequired {
+  conversationIds: string[];
+  since: string;
+}
+```

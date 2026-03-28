@@ -7,6 +7,7 @@ import userRoutes from "./routes/users";
 import contactRoutes from "./routes/contacts";
 import conversationRoutes from "./routes/conversations";
 import messageRoutes from "./routes/messages";
+import searchRoutes from "./routes/search";
 
 export async function buildApp() {
   const app = Fastify({
@@ -30,6 +31,7 @@ export async function buildApp() {
   await app.register(contactRoutes, { prefix: "/api/v1/contacts" });
   await app.register(conversationRoutes, { prefix: "/api/v1/conversations" });
   await app.register(messageRoutes, { prefix: "/api/v1/messages" });
+  await app.register(searchRoutes, { prefix: "/api/v1/search" });
 
   // Global error handler
   app.setErrorHandler((error, request, reply) => {
