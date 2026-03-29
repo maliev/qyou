@@ -3,13 +3,15 @@ import { UserAvatar } from "@/components/ui/UserAvatar";
 import { ContactList } from "@/components/contacts/ContactList";
 import { GlobalSearch } from "@/components/search/GlobalSearch";
 import { Separator } from "@/components/ui/separator";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -31,6 +33,15 @@ export function Sidebar() {
             @{user.username}
           </p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="min-h-[44px] min-w-[44px] shrink-0"
+          onClick={() => navigate("/settings")}
+          aria-label="Settings"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"

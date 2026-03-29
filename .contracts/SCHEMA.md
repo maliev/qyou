@@ -298,6 +298,18 @@ ALTER TABLE messages ADD COLUMN encrypted_content TEXT;
 
 ---
 
+#### Phase 4 columns added to users (2FA)
+
+```sql
+ALTER TABLE users ADD COLUMN totp_secret TEXT;
+ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT false;
+ALTER TABLE users ADD COLUMN totp_backup_codes TEXT[] DEFAULT '{}';
+```
+
+> **Note:** `totp_secret` stores the TOTP secret for authenticator apps. `totp_backup_codes` stores bcrypt-hashed single-use backup codes.
+
+---
+
 ## Summary of ON DELETE behavior
 
 | Parent table | Child table | ON DELETE |

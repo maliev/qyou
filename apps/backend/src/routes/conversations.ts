@@ -6,6 +6,16 @@ import { sendError } from "../utils/errors";
 import { requireAuth } from "../middleware/requireAuth";
 import { pool } from "../db";
 import { getIO } from "../realtime/index";
+import { isBlocked } from "../services/contactService";
+
+function validateMessageContent(content: string): string | null {
+  if (content.trim().length === 0) return "Message cannot be empty";
+  if (content.length > 4000) return "Message too long (max 4000 characters)";
+  if (/(.)\1{49,}/.test(content)) return "Message contains spam-like content";
+  const urlCount = (content.match(/https?:\/\//gi) || []).length;
+  if (urlCount > 10) return "Too many URLs in message";
+  return null;
+}
 
 const createConversationSchema = z.object({
   uin: z.number().int().positive(),
@@ -190,6 +200,24 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       const parsed = sendMessageSchema.safeParse(request.body);
       if (!parsed.success) {
         return sendError(reply, 400, "Invalid input");
+      }
+
+      // Content validation
+      const contentError = validateMessageContent(parsed.data.content);
+      if (contentError) {
+        return sendError(reply, 400, contentError);
+      }
+
+      // Block check
+      const participants = await pool.query(
+        `SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2`,
+        [id, request.userId]
+      );
+      for (const row of participants.rows) {
+        const blocked = await isBlocked(request.userId, row.user_id);
+        if (blocked) {
+          return sendError(reply, 403, "Cannot send message to blocked user");
+        }
       }
 
       const result = await conversationService.createMessage(

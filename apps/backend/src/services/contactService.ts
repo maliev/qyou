@@ -180,13 +180,13 @@ export async function removeContact(userId: string, contactId: string) {
 }
 
 export async function blockUser(userId: string, targetId: string) {
-  // Check any existing relationship
-  const existing = await pool.query(
-    `SELECT * FROM contacts WHERE user_id = $1 AND contact_id = $2`,
-    [targetId, userId]
+  // Check target user exists
+  const targetCheck = await pool.query(
+    `SELECT id FROM users WHERE id = $1`,
+    [targetId]
   );
-  if (existing.rows.length === 0) {
-    return { error: { status: 404, message: "Contact not found" } };
+  if (targetCheck.rows.length === 0) {
+    return { error: { status: 404, message: "User not found" } };
   }
 
   const client = await pool.connect();
@@ -220,4 +220,34 @@ export async function blockUser(userId: string, targetId: string) {
   );
 
   return { contact: toContact(result.rows[0]) };
+}
+
+export async function unblockUser(userId: string, targetId: string) {
+  const result = await pool.query(
+    `DELETE FROM contacts WHERE user_id = $1 AND contact_id = $2 AND status = 'blocked' RETURNING *`,
+    [userId, targetId]
+  );
+  if (result.rows.length === 0) {
+    return { error: { status: 404, message: "Block not found" } };
+  }
+  return { success: true };
+}
+
+export async function getBlockedUsers(userId: string) {
+  const result = await pool.query(
+    CONTACT_WITH_USER_SQL + ` WHERE c.user_id = $1 AND c.status = 'blocked' ORDER BY c.created_at DESC`,
+    [userId]
+  );
+  return result.rows.map(toContact);
+}
+
+export async function isBlocked(userIdA: string, userIdB: string): Promise<boolean> {
+  const result = await pool.query(
+    `SELECT 1 FROM contacts
+     WHERE ((user_id = $1 AND contact_id = $2) OR (user_id = $2 AND contact_id = $1))
+       AND status = 'blocked'
+     LIMIT 1`,
+    [userIdA, userIdB]
+  );
+  return result.rows.length > 0;
 }

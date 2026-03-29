@@ -1,6 +1,43 @@
 import { Server, Socket } from "socket.io";
 import { createMessage } from "../../services/conversationService";
+import { isBlocked } from "../../services/contactService";
 import { pool } from "../../db";
+import { safeRedisGet, safeRedisSet } from "../../utils/gracefulRedis";
+
+const MESSAGE_RATE_LIMIT = 30; // messages per window
+const MESSAGE_RATE_WINDOW = 60; // seconds
+
+async function checkMessageRateLimit(userId: string): Promise<{ allowed: boolean; retryAfter?: number }> {
+  const key = `ratelimit:messages:${userId}`;
+  const current = await safeRedisGet(key);
+  const count = current ? parseInt(current, 10) : 0;
+
+  if (count >= MESSAGE_RATE_LIMIT) {
+    return { allowed: false, retryAfter: MESSAGE_RATE_WINDOW };
+  }
+
+  await safeRedisSet(key, String(count + 1), MESSAGE_RATE_WINDOW);
+  return { allowed: true };
+}
+
+function validateMessageContent(content: string): string | null {
+  if (content.trim().length === 0) {
+    return "Message cannot be empty";
+  }
+  if (content.length > 4000) {
+    return "Message too long (max 4000 characters)";
+  }
+  // Check for > 50 consecutive identical chars
+  if (/(.)\1{49,}/.test(content)) {
+    return "Message contains spam-like content";
+  }
+  // Max 10 URLs
+  const urlCount = (content.match(/https?:\/\//gi) || []).length;
+  if (urlCount > 10) {
+    return "Too many URLs in message";
+  }
+  return null;
+}
 
 export function register(io: Server, socket: Socket) {
   const userId: string = socket.data.userId;
@@ -13,6 +50,37 @@ export function register(io: Server, socket: Socket) {
 
       if (!conversationId || typeof content !== "string" || content.length === 0 || content.length > 5000) {
         return ack?.({ success: false, error: "Invalid payload", tempId });
+      }
+
+      // Rate limit check
+      const rateCheck = await checkMessageRateLimit(userId);
+      if (!rateCheck.allowed) {
+        return ack?.({
+          success: false,
+          error: "RATE_LIMITED",
+          retryAfter: rateCheck.retryAfter,
+          tempId,
+        });
+      }
+
+      // Content validation (skip for encrypted messages)
+      if (!is_encrypted) {
+        const contentError = validateMessageContent(content);
+        if (contentError) {
+          return ack?.({ success: false, error: contentError, tempId });
+        }
+      }
+
+      // Block check: find the other participant and check if blocked
+      const otherParticipants = await pool.query(
+        `SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id != $2`,
+        [conversationId, userId]
+      );
+      for (const row of otherParticipants.rows) {
+        const blocked = await isBlocked(userId, row.user_id);
+        if (blocked) {
+          return ack?.({ success: false, error: "Cannot send message to blocked user", tempId });
+        }
       }
 
       const result = await createMessage(

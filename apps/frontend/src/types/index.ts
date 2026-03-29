@@ -32,6 +32,22 @@ export interface User {
 
 export interface UserSelf extends User {
   email: string;
+  totp_enabled?: boolean;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}
+
+export interface LoginResponse {
+  user?: UserSelf;
+  accessToken?: string;
+  refreshToken?: string;
+  requires2FA?: boolean;
+  tempToken?: string;
+  userId?: string;
 }
 
 export interface Contact {

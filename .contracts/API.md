@@ -892,3 +892,172 @@ Reset the E2EE session for a conversation (re-key).
 |---|---|---|
 | 401 | `"Unauthorized"` | Missing or invalid access token |
 | 403 | `"Forbidden"` | User is not a participant |
+
+---
+
+## Two-Factor Authentication (Phase 4)
+
+### POST /auth/2fa/setup
+
+Generate TOTP secret and QR code for authenticator app setup.
+
+**Auth required:** Yes
+
+**Success response:** `200 OK`
+```ts
+{
+  secret: string
+  qrCodeUrl: string       // data URL of QR code image
+  backupCodes: string[]   // 10 codes, shown once
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"2FA is already enabled"` | User already has 2FA active |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### POST /auth/2fa/verify-setup
+
+Confirm user scanned QR code and authenticator app works.
+
+**Auth required:** Yes
+
+**Request body:**
+```ts
+{
+  token: string   // 6-digit TOTP code
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  success: true
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 400 | `"2FA setup not initiated"` | No TOTP secret found |
+| 400 | `"Invalid verification code"` | TOTP code doesn't match |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### POST /auth/2fa/disable
+
+Disable 2FA. Requires both TOTP code and password.
+
+**Auth required:** Yes
+
+**Request body:**
+```ts
+{
+  token: string     // 6-digit TOTP code or backup code
+  password: string  // account password
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  success: true
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 401 | `"Invalid password"` | Wrong password |
+| 401 | `"Invalid 2FA code"` | TOTP/backup code doesn't match |
+
+---
+
+### POST /auth/2fa/validate
+
+Validate TOTP during login flow. Completes login when 2FA is enabled.
+
+**Auth required:** No (uses temp token from login response)
+
+**Request body:**
+```ts
+{
+  userId: string   // UUID
+  token: string    // 6-digit TOTP code or backup code
+}
+```
+
+**Headers:** `Authorization: Bearer <tempToken>`
+
+**Success response:** `200 OK`
+```ts
+{
+  user: UserSelf
+  accessToken: string
+  refreshToken: string
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid temp token |
+| 401 | `"Invalid or expired token"` | Temp token expired or userId mismatch |
+| 401 | `"Invalid 2FA code"` | TOTP/backup code doesn't match |
+
+---
+
+## Block Users (Phase 4)
+
+### GET /contacts/blocked
+
+List users blocked by the authenticated user.
+
+**Auth required:** Yes
+
+**Success response:** `200 OK`
+```ts
+{
+  contacts: Contact[]
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### DELETE /contacts/block/:userId
+
+Unblock a user.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| userId | string | UUID of the user to unblock |
+
+**Success response:** `200 OK`
+```ts
+{
+  message: "User unblocked"
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"Block not found"` | User is not blocked |

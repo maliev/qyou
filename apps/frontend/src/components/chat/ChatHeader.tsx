@@ -1,13 +1,21 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MoreVertical, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserAvatar } from "@/components/ui/UserAvatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { PinnedMessages } from "./PinnedMessages";
 import { useChatStore } from "@/stores/chatStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePresence } from "@/hooks/usePresence";
+import { useRespondToContact } from "@/hooks/useContacts";
 import { useShallow } from "zustand/react/shallow";
 import { formatRelativeTime } from "@/lib/utils";
+import { toast } from "sonner";
 import type { User } from "@/types";
 
 function ParticipantInfo({ participant }: { participant: User }) {
@@ -48,12 +56,28 @@ export function ChatHeader({
   onBack?: () => void;
 }) {
   const conversations = useChatStore(useShallow((s) => s.conversations));
+  const setActiveConversationId = useChatStore((s) => s.setActiveConversationId);
   const currentUser = useAuthStore((s) => s.user);
   const conversation = conversations.find((c) => c.id === conversationId);
+  const blockMutation = useRespondToContact();
 
   const otherParticipant = conversation?.participants.find(
     (p) => p.id !== currentUser?.id
   );
+
+  const handleBlock = async () => {
+    if (!otherParticipant) return;
+    try {
+      await blockMutation.mutateAsync({
+        userId: otherParticipant.id,
+        status: "blocked",
+      });
+      toast.success("User blocked");
+      setActiveConversationId(null);
+    } catch {
+      toast.error("Failed to block user");
+    }
+  };
 
   return (
     <>
@@ -79,6 +103,29 @@ export function ChatHeader({
           </div>
         )}
         <PinnedMessages conversationId={conversationId} />
+        {otherParticipant && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-h-[44px] min-w-[44px]"
+                aria-label="Chat options"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={handleBlock}
+              >
+                <Ban className="mr-2 h-4 w-4" />
+                Block user
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
       <Separator />
     </>

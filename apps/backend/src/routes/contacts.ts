@@ -6,6 +6,10 @@ import { sendError } from "../utils/errors";
 import { requireAuth } from "../middleware/requireAuth";
 import { getIO } from "../realtime/index";
 import { pool } from "../db";
+import { safeRedisGet, safeRedisSet } from "../utils/gracefulRedis";
+
+const CONTACT_RATE_LIMIT = 20; // requests per hour
+const CONTACT_RATE_WINDOW = 3600; // 1 hour in seconds
 
 const addContactSchema = z.object({
   userId: z.string().uuid(),
@@ -55,6 +59,15 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       if (!parsed.success) {
         return sendError(reply, 400, "Invalid input");
       }
+
+      // Rate limit: max 20 contact requests per hour
+      const rateLimitKey = `ratelimit:contacts:${request.userId}`;
+      const current = await safeRedisGet(rateLimitKey);
+      const count = current ? parseInt(current, 10) : 0;
+      if (count >= CONTACT_RATE_LIMIT) {
+        return sendError(reply, 429, "Too many contact requests. Please try again later.");
+      }
+      await safeRedisSet(rateLimitKey, String(count + 1), CONTACT_RATE_WINDOW);
 
       const result = await contactService.sendContactRequest(
         request.userId,
@@ -162,6 +175,33 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       }
 
       return reply.status(200).send(result);
+    }
+  );
+
+  // GET /contacts/blocked
+  fastify.get(
+    "/blocked",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const contacts = await contactService.getBlockedUsers(request.userId);
+      return reply.status(200).send({ contacts });
+    }
+  );
+
+  // DELETE /contacts/block/:userId — unblock
+  fastify.delete(
+    "/block/:userId",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const { userId } = request.params as { userId: string };
+
+      const result = await contactService.unblockUser(request.userId, userId);
+
+      if ("error" in result) {
+        return sendError(reply, result.error.status, result.error.message);
+      }
+
+      return reply.status(200).send({ message: "User unblocked" });
     }
   );
 

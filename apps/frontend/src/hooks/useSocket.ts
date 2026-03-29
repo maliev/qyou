@@ -270,9 +270,13 @@ export function useSocket() {
           socket.emit(
             "message:send",
             { conversationId, content, tempId, replyToId, encrypted_content, is_encrypted },
-            (ack: { success: boolean; message?: Message; tempId: string; error?: string }) => {
+            (ack: { success: boolean; message?: Message; tempId: string; error?: string; retryAfter?: number }) => {
               if (ack.success) resolve(ack);
-              else reject(new Error(ack.error || "Send failed"));
+              else {
+                const err = new Error(ack.error || "Send failed");
+                (err as Error & { retryAfter?: number }).retryAfter = ack.retryAfter;
+                reject(err);
+              }
             }
           );
         }

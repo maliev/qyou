@@ -574,6 +574,39 @@ export interface E2EEStatus {
 }
 ```
 
+### Two-Factor Authentication (Phase 4)
+
+```ts
+export interface TwoFactorSetupResponse {
+  secret: string;
+  qrCodeUrl: string;
+  backupCodes: string[];
+}
+
+export interface TwoFactorStatus {
+  totp_enabled: boolean;
+}
+
+export interface LoginResponse {
+  user?: UserSelf;
+  accessToken?: string;
+  refreshToken?: string;
+  requires2FA?: boolean;
+  tempToken?: string;
+  userId?: string;
+}
+
+export interface TwoFactorValidateRequest {
+  userId: string;
+  token: string;
+}
+
+export interface TwoFactorDisableRequest {
+  token: string;
+  password: string;
+}
+```
+
 ### WebSocket (Phase 4)
 
 ```ts

@@ -179,27 +179,36 @@ export function MessageInput({
       }
     }
 
+    let rateLimited = false;
     const success = await sendWithRetry(tempId, async () => {
-      const ack = await sendMessage(
-        conversationId,
-        content,
-        tempId,
-        replyId,
-        encryptedContent,
-        isEncrypted
-      );
-      if (ack.message) {
-        // Preserve the decrypted content for our own display
-        if (isEncrypted && ack.message.is_encrypted) {
-          ack.message.content = content;
-          ack.message.encrypted_content = null;
-          // Cache plaintext so it survives page reloads
-          saveDecryptedContent(ack.message.id, content).catch(() => {});
+      try {
+        const ack = await sendMessage(
+          conversationId,
+          content,
+          tempId,
+          replyId,
+          encryptedContent,
+          isEncrypted
+        );
+        if (ack.message) {
+          // Preserve the decrypted content for our own display
+          if (isEncrypted && ack.message.is_encrypted) {
+            ack.message.content = content;
+            ack.message.encrypted_content = null;
+            // Cache plaintext so it survives page reloads
+            saveDecryptedContent(ack.message.id, content).catch(() => {});
+          }
+          replaceOptimisticMessage(conversationId, tempId, ack.message);
+          updateConversationLastMessage(conversationId, ack.message);
         }
-        replaceOptimisticMessage(conversationId, tempId, ack.message);
-        updateConversationLastMessage(conversationId, ack.message);
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message === "RATE_LIMITED") {
+          rateLimited = true;
+          toast.error("Sending too fast — please slow down");
+        }
+        throw err;
       }
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
     });
 
     if (!success) {
@@ -207,6 +216,10 @@ export function MessageInput({
       useChatStore.getState().updateMessage(conversationId, tempId, {
         status: "failed" as MessageDeliveryStatus,
       });
+      // Don't auto-retry rate limited messages
+      if (rateLimited) {
+        markFailed(tempId);
+      }
     }
   };
 
