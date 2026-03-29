@@ -225,6 +225,79 @@ CREATE INDEX idx_push_tokens_user_id ON push_tokens (user_id);
 
 ---
 
+### identity_keys (Phase 4)
+
+```sql
+CREATE TABLE identity_keys (
+  user_id     UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  public_key  TEXT NOT NULL,         -- base64 encoded
+  registration_id INTEGER NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+### signed_prekeys (Phase 4)
+
+```sql
+CREATE TABLE signed_prekeys (
+  id          SERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key_id      INTEGER NOT NULL,
+  public_key  TEXT NOT NULL,         -- base64 encoded
+  signature   TEXT NOT NULL,         -- base64 encoded
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, key_id)
+);
+
+CREATE INDEX idx_signed_prekeys_user_id ON signed_prekeys (user_id);
+```
+
+---
+
+### one_time_prekeys (Phase 4)
+
+```sql
+CREATE TABLE one_time_prekeys (
+  id          SERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key_id      INTEGER NOT NULL,
+  public_key  TEXT NOT NULL,         -- base64 encoded
+  created_at  TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, key_id)
+);
+
+CREATE INDEX idx_one_time_prekeys_user_id ON one_time_prekeys (user_id);
+```
+
+---
+
+### e2ee_sessions (Phase 4)
+
+```sql
+CREATE TABLE e2ee_sessions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  initiator_id    UUID NOT NULL REFERENCES users(id),
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(conversation_id)
+);
+
+CREATE INDEX idx_e2ee_sessions_conversation_id ON e2ee_sessions (conversation_id);
+```
+
+---
+
+#### Phase 4 columns added to messages
+
+```sql
+ALTER TABLE messages ADD COLUMN is_encrypted BOOLEAN DEFAULT false;
+ALTER TABLE messages ADD COLUMN encrypted_content TEXT;
+```
+
+---
+
 ## Summary of ON DELETE behavior
 
 | Parent table | Child table | ON DELETE |
@@ -237,5 +310,9 @@ CREATE INDEX idx_push_tokens_user_id ON push_tokens (user_id);
 | users | message_status | CASCADE |
 | users | message_reactions | CASCADE |
 | users | push_tokens | CASCADE |
+| users | identity_keys | CASCADE |
+| users | signed_prekeys | CASCADE |
+| users | one_time_prekeys | CASCADE |
 | conversations | conversation_participants | CASCADE |
 | conversations | messages | CASCADE |
+| conversations | e2ee_sessions | CASCADE |

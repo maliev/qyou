@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useChatStore } from "@/stores/chatStore";
+import { decryptMessages } from "@/lib/e2ee/decryptMessages";
 import type { Message } from "@/types";
 
 const EMPTY_MESSAGES: Message[] = [];
@@ -31,7 +32,10 @@ export function useMessages(conversationId: string | null) {
     if (query.data && conversationId) {
       // API returns newest-first; reverse for chronological order
       const reversed = [...query.data.messages].reverse();
-      setMessages(conversationId, reversed);
+      // Decrypt any encrypted messages before storing
+      decryptMessages(reversed).then((decrypted) => {
+        setMessages(conversationId, decrypted);
+      });
       setHasMore(query.data.hasMore);
     }
   }, [query.data, conversationId, setMessages]);
@@ -47,7 +51,8 @@ export function useMessages(conversationId: string | null) {
 
     if (data.messages.length > 0) {
       const reversed = [...(data.messages as Message[])].reverse();
-      prependMessages(conversationId, reversed);
+      const decrypted = await decryptMessages(reversed);
+      prependMessages(conversationId, decrypted);
     }
     setHasMore(data.hasMore);
   }, [conversationId, hasMore, messages, prependMessages]);

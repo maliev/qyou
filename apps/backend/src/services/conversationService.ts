@@ -94,6 +94,8 @@ export async function getConversations(userId: string, limit = 20, offset = 0) {
        lm.content AS last_msg_content,
        lm.created_at AS last_msg_created_at,
        lm.edited_at AS last_msg_edited_at,
+       lm.is_encrypted AS last_msg_is_encrypted,
+       lm.encrypted_content AS last_msg_encrypted_content,
        -- Unread count
        COALESCE(unread.count, 0)::int AS unread_count
      FROM conversation_participants my_cp
@@ -102,7 +104,8 @@ export async function getConversations(userId: string, limit = 20, offset = 0) {
        ON other_cp.conversation_id = c.id AND other_cp.user_id != $1
      JOIN users u ON u.id = other_cp.user_id
      LEFT JOIN LATERAL (
-       SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at
+       SELECT m.id, m.sender_id, m.content, m.created_at, m.edited_at,
+              m.is_encrypted, m.encrypted_content
        FROM messages m
        WHERE m.conversation_id = c.id
        ORDER BY m.created_at DESC
@@ -143,6 +146,8 @@ export async function getConversations(userId: string, limit = 20, offset = 0) {
           status: "sent",
           created_at: row.last_msg_created_at,
           edited_at: row.last_msg_edited_at,
+          is_encrypted: row.last_msg_is_encrypted ?? false,
+          encrypted_content: row.last_msg_encrypted_content || null,
         }
       : null,
     unread_count: row.unread_count,
@@ -328,6 +333,8 @@ export async function getMessages(
       forwarded_from_id: row.forwarded_from_id,
       forwarded_from: row.forwarded_from_id ? (forwardMap[row.forwarded_from_id] || null) : null,
       reactions: reactionsMap[row.id] || [],
+      is_encrypted: row.is_encrypted ?? false,
+      encrypted_content: row.encrypted_content || null,
     })),
     hasMore,
   };
@@ -337,7 +344,9 @@ export async function createMessage(
   conversationId: string,
   senderId: string,
   content: string,
-  replyToId?: string
+  replyToId?: string,
+  encryptedContent?: string,
+  isEncrypted?: boolean
 ) {
   // Verify conversation exists
   const convCheck = await pool.query(
@@ -359,10 +368,17 @@ export async function createMessage(
 
   // Insert message
   const result = await pool.query(
-    `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO messages (conversation_id, sender_id, content, reply_to_id, encrypted_content, is_encrypted)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [conversationId, senderId, content, replyToId || null]
+    [
+      conversationId,
+      senderId,
+      isEncrypted ? "[Encrypted]" : content,
+      replyToId || null,
+      encryptedContent || null,
+      isEncrypted || false,
+    ]
   );
 
   const msg = result.rows[0];
@@ -397,6 +413,8 @@ export async function createMessage(
     forwarded_from_id: msg.forwarded_from_id || null,
     forwarded_from: null,
     reactions: [],
+    is_encrypted: msg.is_encrypted ?? false,
+    encrypted_content: msg.encrypted_content || null,
   };
 
   // Fetch reply preview if replying

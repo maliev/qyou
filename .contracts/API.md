@@ -773,3 +773,122 @@ Forward a message to another conversation.
 | 403 | `"Forbidden"` | Not a participant in source or target conversation |
 | 404 | `"Message not found"` | Source message doesn't exist |
 | 404 | `"Conversation not found"` | Target conversation doesn't exist |
+
+---
+
+## E2EE (Phase 4)
+
+### POST /e2ee/keys
+
+Upload E2EE key bundle (identity key, signed prekey, one-time prekeys).
+
+**Auth required:** Yes
+
+**Request body:**
+```ts
+{
+  identityKey: string        // base64 encoded public key
+  registrationId: number     // 1-16380
+  signedPreKey: {
+    keyId: number
+    publicKey: string        // base64 encoded
+    signature: string        // base64 encoded
+  }
+  oneTimePreKeys: Array<{
+    keyId: number
+    publicKey: string        // base64 encoded
+  }>
+}
+```
+
+**Success response:** `200 OK`
+```ts
+{
+  success: true
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 400 | `"Invalid input"` | Validation fails |
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### GET /e2ee/keys/:userId
+
+Fetch another user's prekey bundle to initiate an E2EE session.
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| userId | string | UUID of the target user |
+
+**Success response:** `200 OK`
+```ts
+{
+  identityKey: string
+  registrationId: number
+  signedPreKey: { keyId: number, publicKey: string, signature: string }
+  oneTimePreKey: { keyId: number, publicKey: string } | null
+}
+```
+
+**Note:** Consuming a one-time prekey DELETES it from the database (single use by design).
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 404 | `"E2EE keys not found for user"` | User has not uploaded keys |
+
+---
+
+### GET /e2ee/keys/status
+
+Check how many one-time prekeys remain for the authenticated user.
+
+**Auth required:** Yes
+
+**Success response:** `200 OK`
+```ts
+{
+  oneTimePreKeyCount: number
+}
+```
+
+**Note:** Client should upload more one-time prekeys when count < 10.
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+
+---
+
+### DELETE /e2ee/session/:conversationId
+
+Reset the E2EE session for a conversation (re-key).
+
+**Auth required:** Yes
+
+**URL params:**
+| Param | Type | Description |
+|---|---|---|
+| conversationId | string | UUID of the conversation |
+
+**Success response:** `200 OK`
+```ts
+{
+  success: true
+}
+```
+
+**Error responses:**
+| Code | Message | When |
+|---|---|---|
+| 401 | `"Unauthorized"` | Missing or invalid access token |
+| 403 | `"Forbidden"` | User is not a participant |

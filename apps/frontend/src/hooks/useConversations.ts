@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/lib/api";
 import { useChatStore } from "@/stores/chatStore";
+import { decryptMessageIfNeeded } from "@/lib/e2ee/decryptMessages";
 import type { Conversation } from "@/types";
 
 export function useConversations() {
@@ -20,8 +21,6 @@ export function useConversations() {
 
   useEffect(() => {
     if (query.data) {
-      // Preserve local unread_count=0 for the active conversation
-      // (read receipts are async, API may still report unread)
       const activeId = useChatStore.getState().activeConversationId;
       const merged = query.data.map((conv) => {
         if (conv.id === activeId) {
@@ -29,7 +28,22 @@ export function useConversations() {
         }
         return conv;
       });
-      setConversations(merged);
+
+      // Decrypt last_message for conversations with encrypted messages
+      const decryptLastMessages = async () => {
+        const decrypted = await Promise.all(
+          merged.map(async (conv) => {
+            if (conv.last_message?.is_encrypted) {
+              const msg = await decryptMessageIfNeeded(conv.last_message);
+              return { ...conv, last_message: msg };
+            }
+            return conv;
+          })
+        );
+        setConversations(decrypted);
+      };
+
+      decryptLastMessages();
     }
   }, [query.data, setConversations]);
 

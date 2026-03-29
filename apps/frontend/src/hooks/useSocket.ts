@@ -9,6 +9,7 @@ import { queryClient } from "@/lib/queryClient";
 import api from "@/lib/api";
 import type { Conversation, Message, MessageDeliveryStatus } from "@/types";
 import { toast } from "sonner";
+import { decryptMessageIfNeeded, decryptMessages } from "@/lib/e2ee/decryptMessages";
 
 export function useSocket() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -47,10 +48,12 @@ export function useSocket() {
 
     socket.on(
       "message:new",
-      (data: { message: Message; conversationId: string }) => {
+      async (data: { message: Message; conversationId: string }) => {
+        const msg = await decryptMessageIfNeeded(data.message);
+
         const store = useChatStore.getState();
-        store.addMessage(data.conversationId, data.message);
-        store.updateConversationLastMessage(data.conversationId, data.message);
+        store.addMessage(data.conversationId, msg);
+        store.updateConversationLastMessage(data.conversationId, msg);
         store.incrementUnreadCount(data.conversationId);
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
       }
@@ -222,9 +225,10 @@ export function useSocket() {
             );
             if (msgData.messages && msgData.messages.length > 0) {
               const reversed = [...(msgData.messages as Message[])].reverse();
+              const decrypted = await decryptMessages(reversed);
               const existing = store.messages[convId] || [];
               const existingIds = new Set(existing.map((m) => m.id));
-              const newMsgs = reversed.filter((m) => !existingIds.has(m.id));
+              const newMsgs = decrypted.filter((m) => !existingIds.has(m.id));
               if (newMsgs.length > 0) {
                 store.setMessages(convId, [...existing, ...newMsgs]);
               }
@@ -251,14 +255,21 @@ export function useSocket() {
   }, [isAuthenticated, accessToken]);
 
   const sendMessage = useCallback(
-    (conversationId: string, content: string, tempId: string, replyToId?: string) => {
+    (
+      conversationId: string,
+      content: string,
+      tempId: string,
+      replyToId?: string,
+      encrypted_content?: string,
+      is_encrypted?: boolean
+    ) => {
       return new Promise<{ success: boolean; message?: Message; tempId: string }>(
         (resolve, reject) => {
           const socket = getSocket();
           if (!socket) return reject(new Error("Not connected"));
           socket.emit(
             "message:send",
-            { conversationId, content, tempId, replyToId },
+            { conversationId, content, tempId, replyToId, encrypted_content, is_encrypted },
             (ack: { success: boolean; message?: Message; tempId: string; error?: string }) => {
               if (ack.success) resolve(ack);
               else reject(new Error(ack.error || "Send failed"));

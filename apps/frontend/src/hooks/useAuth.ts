@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
 import { queryClient } from "@/lib/queryClient";
+import { clearAll as clearE2EEKeys } from "@/lib/e2ee/keyStore";
 
 export function useAuth() {
   const { setAuth, logout: storeLogout, refreshToken } = useAuthStore();
@@ -31,6 +32,12 @@ export function useAuth() {
       }
     } catch {
       // ignore logout API errors
+    }
+    // Clear E2EE keys from IndexedDB
+    try {
+      await clearE2EEKeys();
+    } catch {
+      // ignore — keys may not exist yet
     }
     storeLogout();
     queryClient.clear();

@@ -94,6 +94,9 @@ export interface Message {
   forwarded_from_id: string | null;
   forwarded_from: MessageForwardPreview | null;
   reactions: ReactionGroup[];
+  // Phase 4 E2EE fields
+  is_encrypted?: boolean;
+  encrypted_content?: string | null;
 }
 ```
 
@@ -532,5 +535,53 @@ export interface SearchResponse {
 export interface WsSyncRequired {
   conversationIds: string[];
   since: string;
+}
+```
+
+---
+
+## Phase 4 Types
+
+### E2EE
+
+```ts
+export interface SignedPreKey {
+  keyId: number;
+  publicKey: string;        // base64 encoded
+  signature: string;        // base64 encoded
+}
+
+export interface OneTimePreKey {
+  keyId: number;
+  publicKey: string;        // base64 encoded
+}
+
+export interface KeyBundle {
+  identityKey: string;      // base64 encoded
+  registrationId: number;
+  signedPreKey: SignedPreKey;
+  oneTimePreKey: OneTimePreKey | null;
+}
+
+export interface EncryptedMessage {
+  type: number;             // Signal message type
+  body: string;             // base64 encoded ciphertext
+}
+
+export interface E2EEStatus {
+  initialized: boolean;
+  oneTimePreKeyCount: number;
+}
+```
+
+### WebSocket (Phase 4)
+
+```ts
+export interface WsMessageSend {
+  conversationId: string;
+  content: string;
+  tempId: string;
+  encrypted_content?: string;
+  is_encrypted?: boolean;
 }
 ```

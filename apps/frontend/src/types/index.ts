@@ -84,6 +84,9 @@ export interface Message {
   forwarded_from_id: string | null;
   forwarded_from: MessageForwardPreview | null;
   reactions: ReactionGroup[];
+  // Phase 4 E2EE fields
+  is_encrypted?: boolean;
+  encrypted_content?: string | null;
 }
 
 export interface Conversation {
@@ -120,4 +123,33 @@ export interface PendingQueueMessage {
   attempts: number;
   createdAt: string;
   status: "pending" | "failed";
+}
+
+// Phase 4 E2EE types
+export interface SignedPreKey {
+  keyId: number;
+  publicKey: string;
+  signature: string;
+}
+
+export interface OneTimePreKey {
+  keyId: number;
+  publicKey: string;
+}
+
+export interface KeyBundle {
+  identityKey: string;
+  registrationId: number;
+  signedPreKey: SignedPreKey;
+  oneTimePreKey: OneTimePreKey | null;
+}
+
+export interface EncryptedMessage {
+  type: number;
+  body: string;
+}
+
+export interface E2EEStatus {
+  initialized: boolean;
+  oneTimePreKeyCount: number;
 }

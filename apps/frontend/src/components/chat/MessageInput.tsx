@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Send, X, Reply, Pencil } from "lucide-react";
 import { useSocket } from "@/hooks/useSocket";
 import { useMessageQueue } from "@/hooks/useMessageQueue";
+import { useE2EE } from "@/hooks/useE2EE";
+import { saveDecryptedContent } from "@/lib/e2ee/keyStore";
 import { useChatStore } from "@/stores/chatStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useEditMessage } from "@/hooks/useMessageActions";
@@ -19,6 +21,7 @@ export function MessageInput({
 }) {
   const [text, setText] = useState("");
   const { sendMessage, sendTypingStart, sendTypingStop } = useSocket();
+  const { encryptMessageForUser } = useE2EE();
   const {
     addMessage,
     replaceOptimisticMessage,
@@ -156,9 +159,43 @@ export function MessageInput({
       createdAt: optimistic.created_at,
     });
 
+    // Attempt E2EE encryption
+    const conversations = useChatStore.getState().conversations;
+    const conv = conversations.find((c) => c.id === conversationId);
+    const recipientId = conv?.participants.find((p) => p.id !== currentUser.id)?.id;
+
+    let encryptedContent: string | undefined;
+    let isEncrypted = false;
+
+    if (recipientId) {
+      const encrypted = await encryptMessageForUser(recipientId, content);
+      if (encrypted) {
+        encryptedContent = encrypted.encryptedContent;
+        isEncrypted = true;
+        // Mark optimistic message as encrypted
+        useChatStore.getState().updateMessage(conversationId, tempId, {
+          is_encrypted: true,
+        });
+      }
+    }
+
     const success = await sendWithRetry(tempId, async () => {
-      const ack = await sendMessage(conversationId, content, tempId, replyId);
+      const ack = await sendMessage(
+        conversationId,
+        content,
+        tempId,
+        replyId,
+        encryptedContent,
+        isEncrypted
+      );
       if (ack.message) {
+        // Preserve the decrypted content for our own display
+        if (isEncrypted && ack.message.is_encrypted) {
+          ack.message.content = content;
+          ack.message.encrypted_content = null;
+          // Cache plaintext so it survives page reloads
+          saveDecryptedContent(ack.message.id, content).catch(() => {});
+        }
         replaceOptimisticMessage(conversationId, tempId, ack.message);
         updateConversationLastMessage(conversationId, ack.message);
       }

@@ -63,15 +63,61 @@ export function GlobalSearch() {
       }
       setIsSearching(true);
       try {
-        const { data } = await api.get<SearchResponse>("/search", {
-          params: { q: q.trim(), type: searchMode, limit: 10 },
-        });
         if (searchMode === "users") {
+          // User search still uses the API (user data is not encrypted)
+          const { data } = await api.get<SearchResponse>("/search", {
+            params: { q: q.trim(), type: "users", limit: 10 },
+          });
           setUserResults(
             (data.users ?? []).filter((u) => u.id !== currentUser?.id)
           );
         } else {
-          setMessageResults(data.messages ?? []);
+          // Message search: search locally through decrypted messages in chatStore
+          const term = q.trim().toLowerCase();
+          const allMessages = useChatStore.getState().messages;
+          const conversations = useChatStore.getState().conversations;
+          const results: MessageSearchResult[] = [];
+
+          for (const [convId, msgs] of Object.entries(allMessages)) {
+            const conv = conversations.find((c) => c.id === convId);
+            const otherParticipant = conv?.participants.find(
+              (p) => p.id !== currentUser?.id
+            );
+
+            for (const msg of msgs) {
+              if (
+                msg.content.toLowerCase().includes(term) &&
+                !msg.is_deleted
+              ) {
+                results.push({
+                  id: msg.id,
+                  conversation_id: msg.conversation_id,
+                  sender_id: msg.sender_id,
+                  content: msg.content,
+                  created_at: msg.created_at,
+                  sender_name:
+                    msg.sender?.display_name ||
+                    msg.sender?.username ||
+                    "Unknown",
+                  sender_avatar_url: msg.sender?.avatar_url ?? null,
+                  other_participant_name:
+                    otherParticipant?.display_name ||
+                    otherParticipant?.username ||
+                    "Unknown",
+                  other_participant_avatar_url:
+                    otherParticipant?.avatar_url ?? null,
+                });
+              }
+            }
+          }
+
+          // Sort by date descending, limit to 10
+          results.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+          setMessageResults(results.slice(0, 10));
         }
       } catch {
         setUserResults([]);
@@ -203,6 +249,11 @@ export function GlobalSearch() {
             {!isSearching && !hasResults && query.trim().length >= 2 && (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 No results for &apos;{query.trim()}&apos;
+                {mode === "messages" && (
+                  <p className="text-xs mt-1 opacity-60">
+                    Searching loaded messages only
+                  </p>
+                )}
               </div>
             )}
 

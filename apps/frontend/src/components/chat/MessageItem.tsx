@@ -20,6 +20,8 @@ import {
   SmilePlus,
   Copy,
   RotateCcw,
+  Lock,
+  LockOpen,
 } from "lucide-react";
 import { ReactionPicker } from "./ReactionPicker";
 import { ForwardDialog } from "./ForwardDialog";
@@ -152,11 +154,26 @@ export const MessageItem = forwardRef<HTMLDivElement, MessageItemProps>(
             </div>
           )}
 
-          <p className="text-sm break-words whitespace-pre-wrap">
-            {message.content}
-          </p>
+          {message.is_encrypted && message.content === "[Decryption failed]" ? (
+            <p className="text-sm break-words whitespace-pre-wrap flex items-center gap-1 text-destructive">
+              <LockOpen className="h-3 w-3 shrink-0" />
+              [Decryption failed]
+            </p>
+          ) : (
+            <p className="text-sm break-words whitespace-pre-wrap">
+              {message.content}
+            </p>
+          )}
 
           <div className="flex items-center gap-1 mt-1 justify-end">
+            {message.is_encrypted && message.content !== "[Decryption failed]" && (
+              <Lock
+                className={cn(
+                  "h-3 w-3",
+                  isOwn ? "text-white/40" : "text-muted-foreground/60"
+                )}
+              />
+            )}
             {message.is_edited && (
               <span
                 className={cn(

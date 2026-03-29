@@ -47,6 +47,8 @@ On successful connection, the server:
   conversationId: string  // UUID
   content: string         // 1–5000 chars
   tempId: string          // Client-generated UUID for optimistic UI matching
+  encrypted_content?: string  // E2EE ciphertext (Phase 4)
+  is_encrypted?: boolean      // Whether message is E2EE encrypted (Phase 4)
 }
 ```
 
@@ -83,7 +85,7 @@ On successful connection, the server:
 **Payload:**
 ```ts
 {
-  message: Message        // Full message object
+  message: Message        // Full message object (includes encrypted_content, is_encrypted)
   conversationId: string  // UUID
 }
 ```
