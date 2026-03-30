@@ -9,7 +9,7 @@ export async function runMigrations(): Promise<void> {
   console.log("[migrations] Running pending migrations...");
 
   try {
-    execSync("npx node-pg-migrate up --migrations-dir migrations", {
+    execSync("./node_modules/.bin/node-pg-migrate up --migrations-dir migrations", {
       cwd: process.cwd(),
       stdio: "inherit",
       env: { ...process.env, DATABASE_URL: databaseUrl },
