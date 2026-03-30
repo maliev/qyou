@@ -1,7 +1,10 @@
 import Fastify from "fastify";
+import helmet from "@fastify/helmet";
 import corsPlugin from "./plugins/cors";
 import authPlugin from "./plugins/auth";
 import rateLimitPlugin from "./plugins/rateLimit";
+import { pool } from "./db";
+import { isRedisAvailable } from "./redis";
 import authRoutes from "./routes/auth";
 import userRoutes from "./routes/users";
 import contactRoutes from "./routes/contacts";
@@ -13,13 +16,16 @@ import e2eeRoutes from "./routes/e2ee";
 export async function buildApp() {
   const app = Fastify({
     logger: {
-      level: process.env.NODE_ENV === "production" ? "info" : "debug",
+      level: process.env.NODE_ENV === "production" ? "warn" : "debug",
       transport:
         process.env.NODE_ENV !== "production"
           ? { target: "pino-pretty", options: { translateTime: "HH:MM:ss Z" } }
           : undefined,
     },
   });
+
+  // Security headers
+  await app.register(helmet, { contentSecurityPolicy: false });
 
   // Plugins
   await app.register(corsPlugin);
@@ -49,7 +55,25 @@ export async function buildApp() {
   });
 
   // Health check
-  app.get("/health", async () => ({ status: "ok" }));
+  app.get("/health", async () => {
+    let dbStatus: "ok" | "error" = "ok";
+    try {
+      await pool.query("SELECT 1");
+    } catch {
+      dbStatus = "error";
+    }
+
+    const redisStatus = isRedisAvailable() ? "ok" as const : "degraded" as const;
+    const status = dbStatus === "error" ? "degraded" : "ok";
+
+    return {
+      status,
+      db: dbStatus,
+      redis: redisStatus,
+      version: "1.0.0",
+      uptime: Math.floor(process.uptime()),
+    };
+  });
 
   return app;
 }

@@ -1,0 +1,10 @@
+on the user settings page:
+- what it's missing: 
+    --the information for UIN, 
+    --option to delete account,
+    --change the password 
+on user registration:
+- multiple options for 2FA method (app / SMS / passkey)
+- after registration, send email to user with link to accept the registration (it maybe need some)
+on user login:
+- forgot the password

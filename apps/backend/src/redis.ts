@@ -6,9 +6,7 @@ const RETRY_DELAY_MS = 500;
 
 let redisAvailable = false;
 
-export const redis = new Redis({
-  host: config.REDIS_HOST,
-  port: config.REDIS_PORT,
+const redisOptions: import("ioredis").RedisOptions = {
   maxRetriesPerRequest: 3,
   retryStrategy(times) {
     if (times > MAX_RETRIES) {
@@ -20,7 +18,12 @@ export const redis = new Redis({
     return Math.min(times * RETRY_DELAY_MS, 5000);
   },
   lazyConnect: true,
-});
+};
+
+// Use REDIS_URL in production (Upstash requires TLS via rediss://)
+export const redis = config.REDIS_URL
+  ? new Redis(config.REDIS_URL, redisOptions)
+  : new Redis({ host: config.REDIS_HOST, port: config.REDIS_PORT, ...redisOptions });
 
 redis.on("error", (err) => {
   if (redisAvailable) {

@@ -3,8 +3,14 @@ import { buildApp } from "./app";
 import { pool } from "./db";
 import { redis, connectRedis, isRedisAvailable } from "./redis";
 import { initSocketIO } from "./realtime/index";
+import { runMigrations } from "./scripts/migrate-production";
 
 async function start() {
+  // In production, run pending migrations before starting
+  if (config.NODE_ENV === "production") {
+    await runMigrations();
+  }
+
   // Attempt Redis connection (non-blocking — server starts either way)
   await connectRedis();
 
