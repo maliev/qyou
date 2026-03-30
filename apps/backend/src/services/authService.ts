@@ -1,3 +1,4 @@
+import { FastifyInstance } from "fastify";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { pool } from "../db";
@@ -127,7 +128,7 @@ export async function login(input: { login: string; password: string }) {
 }
 
 export async function createTokenPair(
-  fastify: { jwt: { sign: (payload: object, opts?: object) => string } },
+  fastify: FastifyInstance,
   userId: string
 ) {
   const accessToken = fastify.jwt.sign({ sub: userId });
@@ -140,7 +141,7 @@ export async function createTokenPair(
 }
 
 export async function refreshTokens(
-  fastify: { jwt: { sign: (payload: object, opts?: object) => string } },
+  fastify: FastifyInstance,
   refreshToken: string
 ) {
   const tokenHash = hashToken(refreshToken);

@@ -87,7 +87,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const result = await authService.register(parsed.data);
 
     if ("error" in result) {
-      return sendError(reply, result.error.status, result.error.message);
+      return sendError(reply, result.error!.status, result.error!.message);
     }
 
     const tokens = await authService.createTokenPair(fastify, result.userId);
@@ -141,7 +141,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if ("error" in result) {
       // Track failed login attempts
       await safeRedisSet(rateLimitKey, String(failCount + 1), LOGIN_RATE_WINDOW);
-      return sendError(reply, result.error.status, result.error.message);
+      return sendError(reply, result.error!.status, result.error!.message);
     }
 
     // Check if 2FA is enabled
@@ -352,7 +352,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     );
 
     if ("error" in result) {
-      return sendError(reply, result.error.status, result.error.message);
+      return sendError(reply, result.error!.status, result.error!.message);
     }
 
     return reply.status(200).send({

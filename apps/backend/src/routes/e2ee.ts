@@ -77,7 +77,7 @@ export default async function e2eeRoutes(fastify: FastifyInstance) {
         );
 
         if ("error" in result) {
-          return sendError(reply, result.error.status, result.error.message);
+          return sendError(reply, result.error!.status, result.error!.message);
         }
 
         return reply.status(200).send(result.bundle);
@@ -106,7 +106,7 @@ export default async function e2eeRoutes(fastify: FastifyInstance) {
         const result = await e2eeService.deleteSession(conversationId, userId);
 
         if ("error" in result) {
-          return sendError(reply, result.error.status, result.error.message);
+          return sendError(reply, result.error!.status, result.error!.message);
         }
 
         return reply.status(200).send({ success: true });

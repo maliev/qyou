@@ -98,7 +98,7 @@ export default async function userRoutes(fastify: FastifyInstance) {
         return sendError(reply, 404, "User not found");
       }
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send(result);

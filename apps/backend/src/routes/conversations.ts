@@ -98,7 +98,7 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       );
 
       if (result && "error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Notify the other participant via WebSocket and join them to the conversation room
@@ -141,7 +141,7 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send(result);
@@ -158,7 +158,7 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       const result = await messageService.getPinnedMessages(id, request.userId);
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send(result);
@@ -184,7 +184,7 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send(result);
@@ -227,7 +227,7 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(201).send(result);

@@ -75,7 +75,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit contact:request to the target user via WebSocket
@@ -171,7 +171,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       }
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send(result);
@@ -198,7 +198,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       const result = await contactService.unblockUser(request.userId, userId);
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send({ message: "User unblocked" });
@@ -218,7 +218,7 @@ export default async function contactRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send({ message: "Contact removed" });

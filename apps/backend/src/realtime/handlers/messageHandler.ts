@@ -93,7 +93,7 @@ export function register(io: Server, socket: Socket) {
       );
 
       if ("error" in result) {
-        return ack?.({ success: false, error: result.error.message, tempId });
+        return ack?.({ success: false, error: result.error!.message, tempId });
       }
 
       const message = result.message;

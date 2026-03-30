@@ -44,7 +44,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit WebSocket event
@@ -85,7 +85,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       return reply.status(200).send({ message: "Reaction removed" });
@@ -110,7 +110,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit WebSocket event
@@ -150,7 +150,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit WebSocket event
@@ -192,7 +192,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       const result = await messageService.pinMessage(id, request.userId);
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit WebSocket event
@@ -236,7 +236,7 @@ export default async function messageRoutes(fastify: FastifyInstance) {
       );
 
       if ("error" in result) {
-        return sendError(reply, result.error.status, result.error.message);
+        return sendError(reply, result.error!.status, result.error!.message);
       }
 
       // Emit as a new message to the target conversation
