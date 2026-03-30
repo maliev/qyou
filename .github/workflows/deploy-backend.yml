@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [trunk]
+    branches: [main]
     paths: ['apps/backend/**']
 
 jobs:
