@@ -56,7 +56,7 @@ export function ChatHeader({
   onBack?: () => void;
 }) {
   const conversations = useChatStore(useShallow((s) => s.conversations));
-  const setActiveConversationId = useChatStore((s) => s.setActiveConversationId);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
   const currentUser = useAuthStore((s) => s.user);
   const conversation = conversations.find((c) => c.id === conversationId);
   const blockMutation = useRespondToContact();
@@ -73,7 +73,7 @@ export function ChatHeader({
         status: "blocked",
       });
       toast.success("User blocked");
-      setActiveConversationId(null);
+      setActiveConversation(null);
     } catch {
       toast.error("Failed to block user");
     }
