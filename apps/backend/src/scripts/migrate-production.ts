@@ -16,7 +16,6 @@ export async function runMigrations(): Promise<void> {
     });
     console.log("[migrations] Migrations completed successfully");
   } catch (err) {
-    console.error("[migrations] Migration failed:", err);
-    process.exit(1);
+    console.error("[migrations] Migration failed (server will start anyway):", err);
   }
 }
