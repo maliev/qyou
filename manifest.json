@@ -1,0 +1,16 @@
+{
+  "name": "Qyou",
+  "short_name": "Qyou",
+  "description": "Real-time chat, reimagined",
+  "start_url": "/qyou/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/qyou/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
