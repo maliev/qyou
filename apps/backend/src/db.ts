@@ -2,21 +2,15 @@ import { Pool } from "pg";
 import { config } from "./config";
 
 function getSslConfig(
-  databaseUrl: string
+  connectionString: string
 ): false | { rejectUnauthorized: boolean } {
-  // Local development — no SSL
-  if (databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")) {
-    return false;
-  }
-  // Fly.io internal networking — no SSL
-  if (databaseUrl.includes(".flycast") || databaseUrl.includes(".internal")) {
-    return false;
-  }
-  // Explicit sslmode in the URL takes precedence
-  if (databaseUrl.includes("sslmode=disable")) {
-    return false;
-  }
-  // External providers (Neon, Supabase, etc.) — SSL required
+  if (!connectionString) return false;
+  if (connectionString.includes("localhost")) return false;
+  if (connectionString.includes("127.0.0.1")) return false;
+  if (connectionString.includes(".flycast")) return false;
+  if (connectionString.includes(".internal")) return false;
+  if (connectionString.includes("sslmode=disable")) return false;
+  // Supabase and all external hosts need SSL
   return { rejectUnauthorized: false };
 }
 
