@@ -78,7 +78,14 @@ function verifyTempToken(token: string): string | null {
 
 export default async function authRoutes(fastify: FastifyInstance) {
   // POST /auth/register
-  fastify.post("/register", async (request, reply) => {
+  fastify.post("/register", {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 hour',
+      },
+    },
+  }, async (request, reply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
       return sendError(reply, 400, "Invalid input");
@@ -100,7 +107,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
   });
 
   // POST /auth/login
-  fastify.post("/login", async (request, reply) => {
+  fastify.post("/login", {
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '15 minutes',
+      },
+    },
+  }, async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return sendError(reply, 400, "Invalid input");

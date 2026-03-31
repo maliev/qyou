@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { FastifyError } from "fastify";
 import helmet from "@fastify/helmet";
 import corsPlugin from "./plugins/cors";
 import authPlugin from "./plugins/auth";
@@ -25,7 +25,25 @@ export async function buildApp() {
   });
 
   // Security headers
-  await app.register(helmet, { contentSecurityPolicy: false });
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        connectSrc: [
+          "'self'",
+          "https://maliev.github.io",
+          "wss://qyou-api.fly.dev",
+          "https://qyou-api.fly.dev",
+        ],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        fontSrc: ["'self'", "data:"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+      },
+    },
+  });
 
   // Plugins
   await app.register(corsPlugin);
@@ -42,7 +60,7 @@ export async function buildApp() {
   await app.register(e2eeRoutes, { prefix: "/api/v1/e2ee" });
 
   // Global error handler
-  app.setErrorHandler((error, request, reply) => {
+  app.setErrorHandler((error: FastifyError, request, reply) => {
     request.log.error(error);
 
     if (error.statusCode === 429) {
