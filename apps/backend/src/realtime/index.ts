@@ -26,8 +26,28 @@ export function initSocketIO(httpServer: HttpServer): Server {
   // Redis adapter for multi-node support — fall back to in-memory if unavailable
   if (isRedisAvailable()) {
     try {
-      const pubClient = new Redis({ host: config.REDIS_HOST, port: config.REDIS_PORT });
+      const redisAdapterOpts: import("ioredis").RedisOptions = {
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+        lazyConnect: false,
+        retryStrategy(times) {
+          if (times > 5) return null;
+          return Math.min(times * 500, 2000);
+        },
+        reconnectOnError: () => false,
+      };
+      const pubClient = config.REDIS_URL
+        ? new Redis(config.REDIS_URL, redisAdapterOpts)
+        : new Redis({ host: config.REDIS_HOST, port: config.REDIS_PORT, ...redisAdapterOpts });
       const subClient = pubClient.duplicate();
+
+      pubClient.on("error", (err) => {
+        console.warn("[ws] Redis pub client error:", err.message);
+      });
+      subClient.on("error", (err) => {
+        console.warn("[ws] Redis sub client error:", err.message);
+      });
+
       io.adapter(createAdapter(pubClient, subClient));
       console.log("[ws] Socket.io initialized with Redis adapter");
     } catch (err: unknown) {
