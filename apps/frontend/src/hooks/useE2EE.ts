@@ -92,20 +92,22 @@ export function useE2EE() {
 
     // Re-derive public key base64 from stored key pair
     await ensureSodium();
+    const identityPub = new Uint8Array(identityKeyPair.publicKey) as Uint8Array;
+    const signedPub = new Uint8Array(signedPreKeyPair.publicKey) as Uint8Array;
     const identityPubBase64 = sodium.to_base64(
-      new Uint8Array(identityKeyPair.publicKey),
+      identityPub,
       sodium.base64_variants.ORIGINAL
     );
     const signedPubBase64 = sodium.to_base64(
-      new Uint8Array(signedPreKeyPair.publicKey),
+      signedPub,
       sodium.base64_variants.ORIGINAL
     );
 
     // Re-sign the signed prekey
-    const identityPriv = new Uint8Array(identityKeyPair.privateKey);
+    const identityPriv = new Uint8Array(identityKeyPair.privateKey) as Uint8Array;
     const edKeyPair = sodium.crypto_sign_seed_keypair(identityPriv.slice(0, 32));
     const signature = sodium.crypto_sign_detached(
-      new Uint8Array(signedPreKeyPair.publicKey),
+      signedPub,
       edKeyPair.privateKey
     );
     const signatureBase64 = sodium.to_base64(signature, sodium.base64_variants.ORIGINAL);
