@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { UserSelf } from "@/types";
 import { disconnect } from "@/lib/socket";
+import { setCurrentUserId } from "@/lib/e2ee/keyStore";
 import { useChatStore } from "./chatStore";
 import { usePresenceStore } from "./presenceStore";
 import { useContactStore } from "./contactStore";
@@ -24,8 +25,10 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
 
-      setAuth: (user, accessToken, refreshToken) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+      setAuth: (user, accessToken, refreshToken) => {
+        setCurrentUserId(user.id);
+        set({ user, accessToken, refreshToken, isAuthenticated: true });
+      },
 
       logout: () => {
         disconnect();
@@ -41,6 +44,13 @@ export const useAuthStore = create<AuthState>()(
         useSocketStore.getState().reset();
       },
     }),
-    { name: "qyou-auth" }
+    {
+      name: "qyou-auth",
+      onRehydrateStorage: () => (state) => {
+        if (state?.user?.id) {
+          setCurrentUserId(state.user.id);
+        }
+      },
+    }
   )
 );

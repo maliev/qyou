@@ -1,6 +1,6 @@
 import { openDB, type IDBPDatabase } from "idb";
 
-const DB_NAME = "qyou-e2ee";
+const DB_NAME_PREFIX = "qyou-e2ee-";
 const DB_VERSION = 2;
 
 const STORES = {
@@ -13,10 +13,27 @@ const STORES = {
 } as const;
 
 let dbPromise: Promise<IDBPDatabase> | null = null;
+let currentUserId: string | null = null;
+
+/**
+ * Set the current user ID for IndexedDB namespacing.
+ * Must be called before any key operations (typically on login).
+ */
+export function setCurrentUserId(userId: string): void {
+  if (currentUserId !== userId) {
+    // Close previous DB connection if user changed
+    dbPromise = null;
+    currentUserId = userId;
+  }
+}
 
 function getDB(): Promise<IDBPDatabase> {
+  if (!currentUserId) {
+    throw new Error("E2EE keyStore: setCurrentUserId must be called before accessing keys");
+  }
   if (!dbPromise) {
-    dbPromise = openDB(DB_NAME, DB_VERSION, {
+    const dbName = DB_NAME_PREFIX + currentUserId;
+    dbPromise = openDB(dbName, DB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains(STORES.identityKeys)) {
           db.createObjectStore(STORES.identityKeys);
