@@ -25,20 +25,26 @@ export function usePushNotifications() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
 
     try {
+      console.log("[Push] Starting registration...");
+
       // Register service worker and wait for it to be active
       const registration = await navigator.serviceWorker.register(
         import.meta.env.BASE_URL + "sw.js"
       );
+      console.log("[Push] Service worker registered, scope:", registration.scope);
 
       // Wait for the SW to be ready (important for iOS)
       const ready = await navigator.serviceWorker.ready;
+      console.log("[Push] Service worker ready");
 
       // Request notification permission
       const permission = await Notification.requestPermission();
+      console.log("[Push] Permission:", permission);
       if (permission !== "granted") return;
 
       // Check for existing subscription first
       let subscription = await ready.pushManager.getSubscription();
+      console.log("[Push] Existing subscription:", !!subscription);
 
       if (!subscription) {
         // Subscribe to push
@@ -46,6 +52,7 @@ export function usePushNotifications() {
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
         });
+        console.log("[Push] New subscription created");
       }
 
       // Send subscription to backend
@@ -53,7 +60,7 @@ export function usePushNotifications() {
         subscription: subscription.toJSON(),
       });
 
-      console.log("[Push] Subscription registered successfully");
+      console.log("[Push] Subscription sent to server successfully");
     } catch (err) {
       console.error("[Push] Subscription failed:", err);
     }

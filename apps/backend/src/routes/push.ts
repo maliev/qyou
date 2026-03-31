@@ -1,9 +1,10 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { saveSubscription, removeSubscription } from "../services/pushService";
+import { saveSubscription, removeSubscription, sendPushToUser } from "../services/pushService";
 import { sendError } from "../utils/errors";
 import { requireAuth } from "../middleware/requireAuth";
 import { config } from "../config";
+import { pool } from "../db";
 
 const subscribeSchema = z.object({
   subscription: z.object({
@@ -70,4 +71,40 @@ export default async function pushRoutes(fastify: FastifyInstance) {
       publicKey: config.VAPID_PUBLIC_KEY || null,
     });
   });
+
+  // GET /push/status — Check push subscription status for current user
+  fastify.get(
+    "/status",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = (request as any).userId as string;
+      const result = await pool.query(
+        `SELECT COUNT(*)::int AS count FROM push_tokens WHERE user_id = $1`,
+        [userId]
+      );
+      return reply.status(200).send({
+        subscriptions: result.rows[0].count,
+      });
+    }
+  );
+
+  // POST /push/test — Send a test push notification to yourself
+  fastify.post(
+    "/test",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const userId = (request as any).userId as string;
+      try {
+        await sendPushToUser(userId, {
+          title: "Qyou Test",
+          body: "Push notifications are working!",
+          data: {},
+        });
+        return reply.status(200).send({ success: true });
+      } catch (err) {
+        request.log.error(err);
+        return sendError(reply, 500, "Push test failed");
+      }
+    }
+  );
 }
