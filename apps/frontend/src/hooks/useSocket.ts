@@ -213,6 +213,17 @@ export function useSocket() {
       }
     );
 
+    // Phase 4: E2EE toggle sync
+    socket.on(
+      "conversation:e2ee-toggled",
+      (data: { conversationId: string; e2ee_enabled: boolean }) => {
+        useChatStore.getState().updateConversationE2EE(
+          data.conversationId,
+          data.e2ee_enabled
+        );
+      }
+    );
+
     // Phase 3: Handle sync:required on reconnect
     socket.on(
       "sync:required",

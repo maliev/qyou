@@ -50,6 +50,7 @@ interface ChatState {
   setReplyToMessage: (message: Message | null) => void;
   setEditingMessage: (message: Message | null) => void;
   setTargetMessage: (messageId: string | null) => void;
+  updateConversationE2EE: (conversationId: string, enabled: boolean) => void;
 }
 
 export const useChatStore = create<ChatState>()((set, get) => ({
@@ -281,4 +282,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   setEditingMessage: (message) => set({ editingMessage: message }),
 
   setTargetMessage: (messageId) => set({ targetMessageId: messageId }),
+
+  updateConversationE2EE: (conversationId, enabled) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, e2ee_enabled: enabled } : c
+      ),
+    })),
 }));

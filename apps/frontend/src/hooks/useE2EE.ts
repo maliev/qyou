@@ -215,10 +215,17 @@ export function useE2EE() {
     return keyStore.hasKeys();
   }, []);
 
+  const ensureE2EEReady = useCallback(async (): Promise<boolean> => {
+    const hasExistingKeys = await keyStore.hasKeys();
+    if (hasExistingKeys) return true;
+    return initializeE2EE();
+  }, [initializeE2EE]);
+
   return {
     initializeE2EE,
     encryptMessageForUser,
     decryptMessageContent,
     isE2EEEnabled,
+    ensureE2EEReady,
   };
 }

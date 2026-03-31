@@ -6,6 +6,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useMessageQueue } from "@/hooks/useMessageQueue";
 import { useE2EE } from "@/hooks/useE2EE";
 import { saveDecryptedContent } from "@/lib/e2ee/keyStore";
+import { useShallow } from "zustand/react/shallow";
 import { useChatStore } from "@/stores/chatStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useEditMessage } from "@/hooks/useMessageActions";
@@ -21,7 +22,9 @@ export function MessageInput({
 }) {
   const [text, setText] = useState("");
   const { sendMessage, sendTypingStart, sendTypingStop } = useSocket();
-  const { encryptMessageForUser } = useE2EE();
+  const { encryptMessageForUser, ensureE2EEReady } = useE2EE();
+  const conversations = useChatStore(useShallow((s) => s.conversations));
+  const conversation = conversations.find((c) => c.id === conversationId);
   const {
     addMessage,
     replaceOptimisticMessage,
@@ -159,15 +162,15 @@ export function MessageInput({
       createdAt: optimistic.created_at,
     });
 
-    // Attempt E2EE encryption
-    const conversations = useChatStore.getState().conversations;
-    const conv = conversations.find((c) => c.id === conversationId);
+    // Attempt E2EE encryption only when conversation has e2ee_enabled
+    const conv = useChatStore.getState().conversations.find((c) => c.id === conversationId);
     const recipientId = conv?.participants.find((p) => p.id !== currentUser.id)?.id;
 
     let encryptedContent: string | undefined;
     let isEncrypted = false;
 
-    if (recipientId) {
+    if (conv?.e2ee_enabled && recipientId) {
+      await ensureE2EEReady();
       const encrypted = await encryptMessageForUser(recipientId, content);
       if (encrypted) {
         encryptedContent = encrypted.encryptedContent;

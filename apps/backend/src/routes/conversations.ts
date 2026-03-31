@@ -35,6 +35,10 @@ const listConversationsQuerySchema = z.object({
   offset: z.coerce.number().min(0).default(0),
 });
 
+const toggleE2EESchema = z.object({
+  enabled: z.boolean(),
+});
+
 export default async function conversationRoutes(fastify: FastifyInstance) {
   // GET /conversations
   fastify.get(
@@ -145,6 +149,45 @@ export default async function conversationRoutes(fastify: FastifyInstance) {
       }
 
       return reply.status(200).send(result);
+    }
+  );
+
+  // PATCH /conversations/:id/e2ee
+  fastify.patch(
+    "/:id/e2ee",
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const parsed = toggleE2EESchema.safeParse(request.body);
+      if (!parsed.success) {
+        return sendError(reply, 400, "Invalid input");
+      }
+
+      const result = await conversationService.toggleConversationE2EE(
+        id,
+        request.userId,
+        parsed.data.enabled
+      );
+
+      if ("error" in result) {
+        return sendError(reply, result.error!.status, result.error!.message);
+      }
+
+      // Notify conversation participants via WebSocket
+      try {
+        const io = getIO();
+        if (io) {
+          io.to(`conversation:${id}`).emit("conversation:e2ee-toggled", {
+            conversation_id: id,
+            e2ee_enabled: parsed.data.enabled,
+            toggled_by: request.userId,
+          });
+        }
+      } catch {
+        // Non-critical — don't fail the request if realtime notification fails
+      }
+
+      return reply.status(200).send({ e2ee_enabled: result.e2ee_enabled });
     }
   );
 

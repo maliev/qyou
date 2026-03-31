@@ -110,6 +110,7 @@ export interface Conversation {
   participants: User[];
   last_message: Message | null;
   unread_count?: number;
+  e2ee_enabled: boolean;
   created_at: string;
 }
 

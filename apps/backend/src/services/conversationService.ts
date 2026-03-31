@@ -84,6 +84,7 @@ export async function getConversations(userId: string, limit = 20, offset = 0) {
     `SELECT
        c.id AS conversation_id,
        c.created_at AS conversation_created_at,
+       c.e2ee_enabled,
        -- Other participant
        u.id AS user_id, u.uin, u.username, u.display_name,
        u.avatar_url, u.bio, u.country, u.last_seen_at,
@@ -151,6 +152,7 @@ export async function getConversations(userId: string, limit = 20, offset = 0) {
         }
       : null,
     unread_count: row.unread_count,
+    e2ee_enabled: row.e2ee_enabled ?? false,
     created_at: row.conversation_created_at,
   }));
 
@@ -211,6 +213,7 @@ export async function getConversationById(conversationId: string, userId: string
             edited_at: lastMsg.rows[0].edited_at,
           }
         : null,
+      e2ee_enabled: conv.e2ee_enabled ?? false,
       created_at: conv.created_at,
     },
   };
@@ -430,4 +433,36 @@ export async function createMessage(
   );
 
   return { message };
+}
+
+export async function toggleConversationE2EE(
+  conversationId: string,
+  userId: string,
+  enabled: boolean
+) {
+  // Verify conversation exists
+  const convCheck = await pool.query(
+    `SELECT id FROM conversations WHERE id = $1`,
+    [conversationId]
+  );
+  if (convCheck.rows.length === 0) {
+    return { error: { status: 404, message: "Conversation not found" } };
+  }
+
+  // Verify user is a participant
+  const partCheck = await pool.query(
+    `SELECT user_id FROM conversation_participants WHERE conversation_id = $1 AND user_id = $2`,
+    [conversationId, userId]
+  );
+  if (partCheck.rows.length === 0) {
+    return { error: { status: 403, message: "Forbidden" } };
+  }
+
+  // Update e2ee_enabled flag
+  await pool.query(
+    `UPDATE conversations SET e2ee_enabled = $1 WHERE id = $2`,
+    [enabled, conversationId]
+  );
+
+  return { e2ee_enabled: enabled };
 }

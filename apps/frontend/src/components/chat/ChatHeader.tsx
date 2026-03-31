@@ -1,4 +1,5 @@
-import { ArrowLeft, MoreVertical, Ban } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, MoreVertical, Ban, Shield, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { UserAvatar } from "@/components/ui/UserAvatar";
@@ -13,6 +14,8 @@ import { useChatStore } from "@/stores/chatStore";
 import { useAuthStore } from "@/stores/authStore";
 import { usePresence } from "@/hooks/usePresence";
 import { useRespondToContact } from "@/hooks/useContacts";
+import { useE2EE } from "@/hooks/useE2EE";
+import api from "@/lib/api";
 import { useShallow } from "zustand/react/shallow";
 import { formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
@@ -57,13 +60,44 @@ export function ChatHeader({
 }) {
   const conversations = useChatStore(useShallow((s) => s.conversations));
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const updateConversationE2EE = useChatStore((s) => s.updateConversationE2EE);
   const currentUser = useAuthStore((s) => s.user);
   const conversation = conversations.find((c) => c.id === conversationId);
   const blockMutation = useRespondToContact();
+  const { ensureE2EEReady } = useE2EE();
+  const [togglingE2EE, setTogglingE2EE] = useState(false);
 
   const otherParticipant = conversation?.participants.find(
     (p) => p.id !== currentUser?.id
   );
+
+  const isE2EEOn = conversation?.e2ee_enabled ?? false;
+
+  const handleToggleE2EE = async () => {
+    if (togglingE2EE) return;
+    setTogglingE2EE(true);
+    try {
+      const newEnabled = !isE2EEOn;
+      if (newEnabled) {
+        const ready = await ensureE2EEReady();
+        if (!ready) {
+          toast.error("Failed to initialize encryption keys");
+          return;
+        }
+      }
+      await api.patch(`/conversations/${conversationId}/e2ee`, {
+        enabled: newEnabled,
+      });
+      updateConversationE2EE(conversationId, newEnabled);
+      toast.success(
+        newEnabled ? "Secret Chat enabled" : "Secret Chat disabled"
+      );
+    } catch {
+      toast.error("Failed to toggle Secret Chat");
+    } finally {
+      setTogglingE2EE(false);
+    }
+  };
 
   const handleBlock = async () => {
     if (!otherParticipant) return;
@@ -102,6 +136,11 @@ export function ChatHeader({
             </p>
           </div>
         )}
+        {isE2EEOn && (
+          <div className="flex items-center gap-1 text-emerald-500" title="Secret Chat enabled">
+            <Lock className="h-4 w-4" />
+          </div>
+        )}
         <PinnedMessages conversationId={conversationId} />
         {otherParticipant && (
           <DropdownMenu>
@@ -116,6 +155,13 @@ export function ChatHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={handleToggleE2EE}
+                disabled={togglingE2EE}
+              >
+                <Shield className="mr-2 h-4 w-4" />
+                {isE2EEOn ? "Disable Secret Chat" : "Enable Secret Chat"}
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={handleBlock}
