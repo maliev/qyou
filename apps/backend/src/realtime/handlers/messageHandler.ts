@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import { createMessage } from "../../services/conversationService";
 import { isBlocked } from "../../services/contactService";
+import { sendPushToUser } from "../../services/pushService";
 import { pool } from "../../db";
 import { safeRedisGet, safeRedisSet } from "../../utils/gracefulRedis";
 
@@ -130,6 +131,26 @@ export function register(io: Server, socket: Socket) {
             userId: row.user_id,
             deliveredAt: now,
           });
+        } else {
+          // Recipient is offline — send push notification
+          try {
+            const senderResult = await pool.query(
+              `SELECT display_name, username FROM users WHERE id = $1`,
+              [userId]
+            );
+            const sender = senderResult.rows[0];
+            const senderName =
+              sender?.display_name || sender?.username || "Someone";
+
+            await sendPushToUser(row.user_id, {
+              title: senderName,
+              body: is_encrypted ? "[Encrypted]" : content,
+              data: { conversationId, messageId: message.id },
+            });
+          } catch (pushErr) {
+            // Push errors should never break message flow
+            console.error("[ws] push notification error:", pushErr);
+          }
         }
       }
 

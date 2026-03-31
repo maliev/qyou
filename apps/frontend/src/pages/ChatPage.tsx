@@ -3,6 +3,8 @@ import { Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { useSocket } from "@/hooks/useSocket";
 import { useNotifications } from "@/hooks/useNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useBadge } from "@/hooks/useBadge";
 import { setCurrentUserId } from "@/lib/e2ee/keyStore";
 import { AppShell } from "@/components/layout/AppShell";
 
@@ -15,6 +17,12 @@ export function ChatPage() {
 
   // Tab title + browser notifications for background messages
   useNotifications();
+
+  // PWA push notifications via service worker
+  usePushNotifications();
+
+  // App badge counter for unread messages
+  useBadge();
 
   // Namespace E2EE keys by user ID (actual init is lazy, on first Secret Chat use)
   useEffect(() => {

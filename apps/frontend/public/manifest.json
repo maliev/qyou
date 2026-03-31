@@ -2,6 +2,7 @@
   "name": "Qyou",
   "short_name": "Qyou",
   "description": "Real-time chat, reimagined",
+  "id": "/qyou/",
   "start_url": "/qyou/",
   "display": "standalone",
   "background_color": "#09090b",

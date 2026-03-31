@@ -4,12 +4,16 @@ import { pool } from "./db";
 import { redis, connectRedis, isRedisAvailable } from "./redis";
 import { initSocketIO } from "./realtime/index";
 import { runMigrations } from "./scripts/migrate-production";
+import { initWebPush } from "./services/pushService";
 
 async function start() {
   // In production, run pending migrations before starting
   if (config.NODE_ENV === "production") {
     await runMigrations();
   }
+
+  // Initialize web push notifications
+  initWebPush();
 
   // Attempt Redis connection (non-blocking — server starts either way)
   await connectRedis();
