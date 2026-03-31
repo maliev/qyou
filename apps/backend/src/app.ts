@@ -32,8 +32,8 @@ export async function buildApp() {
         connectSrc: [
           "'self'",
           "https://maliev.github.io",
-          "wss://qyou-api.fly.dev",
-          "https://qyou-api.fly.dev",
+          "wss://qyou.onrender.com",
+          "https://qyou.onrender.com",
         ],
         scriptSrc: ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
