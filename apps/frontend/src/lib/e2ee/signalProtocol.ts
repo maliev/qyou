@@ -64,7 +64,7 @@ function hkdf(
     input[prev.length + info.length] = i;
 
     const key = prk.length === 32 ? prk : prk.slice(0, 32);
-    prev = sodium.crypto_auth_hmacsha256(input, key);
+    prev = sodium.crypto_auth_hmacsha256(input, key) as Uint8Array<ArrayBuffer>;
     okm.set(prev, (i - 1) * hashLen);
   }
 
