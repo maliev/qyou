@@ -9,5 +9,6 @@ export default fp(async (fastify) => {
         ? config.CORS_ORIGIN
         : true,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 });
