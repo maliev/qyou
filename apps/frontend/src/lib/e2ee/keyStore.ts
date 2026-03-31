@@ -183,7 +183,8 @@ export async function getDecryptedContent(
   return (await db.get(STORES.decryptedMessages, messageId)) ?? null;
 }
 
-// Clear all keys (on logout)
+// Clear E2EE keys and sessions on logout.
+// Preserves decrypted message cache so old messages remain readable.
 export async function clearAll(): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(
@@ -193,7 +194,6 @@ export async function clearAll(): Promise<void> {
       STORES.oneTimePreKeys,
       STORES.sessions,
       STORES.meta,
-      STORES.decryptedMessages,
     ],
     "readwrite"
   );
@@ -203,7 +203,6 @@ export async function clearAll(): Promise<void> {
     tx.objectStore(STORES.oneTimePreKeys).clear(),
     tx.objectStore(STORES.sessions).clear(),
     tx.objectStore(STORES.meta).clear(),
-    tx.objectStore(STORES.decryptedMessages).clear(),
     tx.done,
   ]);
 }
